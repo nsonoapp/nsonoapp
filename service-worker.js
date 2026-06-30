@@ -54,7 +54,7 @@ const CORE_ASSETS = [
   "/js/finance/notifications.js",
   "/js/finance/toast.js",
   "/js/help.js",
-  "/js/help-tutoriel.js",
+  "/js/help/help-tutoriel.js",
   "/js/pages.js",
   "/js/login.js",
   "/js/signup.js",

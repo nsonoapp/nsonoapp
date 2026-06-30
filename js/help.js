@@ -3,7 +3,7 @@ import {
   ES_COMPANY_ABOUT,
   STOCKFLOW_WHY,
   HELP_CONTACT
-} from "./help-tutoriel.js";
+} from "./help/help-tutoriel.js";
 
 function createTextEl(tag, text, className) {
   const el = document.createElement(tag);
@@ -63,7 +63,7 @@ function buildTutorialPanel(page) {
 function buildAccordion(container) {
   container.replaceChildren();
 
-  HELP_TUTORIALS.forEach((page, index) => {
+  HELP_TUTORIALS.forEach((page) => {
     const item = document.createElement("article");
     item.className = "help-accordion-item";
 
@@ -100,11 +100,6 @@ function buildAccordion(container) {
 
     header.append(title, role, btn);
     item.append(header, panel);
-
-    if (index === 0) {
-      openPanel(btn, panel, icon);
-    }
-
     container.appendChild(item);
   });
 }
@@ -183,23 +178,6 @@ function buildWhySection() {
   section.append(title, intro, grid, promise, central);
 }
 
-function buildCtaSection() {
-  const cta = document.getElementById("helpCta");
-  if (!cta) return;
-
-  const waUrl = new URL(`https://wa.me/${HELP_CONTACT.whatsappPrimary}`);
-  waUrl.searchParams.set("text", HELP_CONTACT.whatsappMessage);
-
-  const link = document.createElement("a");
-  link.className = "help-cta-btn";
-  link.href = waUrl.toString();
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.textContent = "Installation & accompagnement sur WhatsApp";
-
-  cta.replaceChildren(link);
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   const accordion = document.getElementById("helpAccordion");
   if (accordion) {
@@ -208,5 +186,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
   buildAboutSection();
   buildWhySection();
-  buildCtaSection();
 });

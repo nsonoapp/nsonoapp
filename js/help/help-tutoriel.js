@@ -167,5 +167,5 @@ export const HELP_CONTACT = {
   website: "https://es-company98.github.io/Es-Company/",
   whatsappPrimary: "243843858955",
   whatsappMessage:
-    "Bonjour ES-Company, je souhaite installer StockFlow et bénéficier de l'accompagnement."
+    "Bonjour ES-Company, j'utilise StockFlow et j'ai besoin d'aide ou de support."
 };
