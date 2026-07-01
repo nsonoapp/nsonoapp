@@ -891,8 +891,6 @@ async function applyManualStockUpdate(productId, newQty, expirationDateStr = "")
     throw new Error("Date expiration requise pour entrée stock");
   }
 
-  const stockBefore = Number(productData.stock_current || 0);
-
   await runTransaction(db, async (tx) => {
     const prodSnap = await tx.get(prodRef);
 
@@ -953,27 +951,6 @@ async function applyManualStockUpdate(productId, newQty, expirationDateStr = "")
       createdAt: serverTimestamp()
     });
   });
-
-  const reinvestAmount = computeStockIncreaseFundingAmount(
-    stockBefore,
-    newQty,
-    Number(productData.price_buy || 0)
-  );
-
-  if (reinvestAmount > 0) {
-    const productLabel = productData.name || "Produit";
-    const diff = newQty - stockBefore;
-
-    await recordStockFundingExpense({
-      category: "reinvestment",
-      amount: reinvestAmount,
-      reason: `Réinvestissement — ${productLabel} (correction +${diff})`,
-      relatedTo: productId,
-      note: "Mise à jour manuelle stock",
-      createdBy: currentUserId,
-      createdAt: serverTimestamp()
-    });
-  }
 
   if (productHasExpiration) {
     const movements = await loadProductMovements(productId);
