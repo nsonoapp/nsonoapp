@@ -21,7 +21,7 @@ const state = {
   users: [],
   debts: [],
   rows: [],
-  currency: "$"
+  currency: "FC"
 };
 
 let currentUser = null;
@@ -33,6 +33,18 @@ function n(v) {
 
 function formatMoney(v) {
   return `${Math.round(n(v)).toLocaleString()} ${state.currency}`;
+}
+
+async function loadAppCurrency() {
+  try {
+    const config = await getAppConfig();
+    const symbol = String(config?.currencySymbol || "").trim();
+    const code = String(config?.currency || "").trim();
+    state.currency = symbol || code || "FC";
+  } catch (error) {
+    console.warn("[vendus] loadAppCurrency", error);
+    state.currency = "FC";
+  }
 }
 
 function getDate(v) {
@@ -195,8 +207,7 @@ function updateDateLimits() {
 }
 
 async function loadMetaData() {
-  const config = await getAppConfig();
-  state.currency = config?.currencySymbol || config?.currency || "$";
+  await loadAppCurrency();
 
   if (metaLoaded) {
     return;
@@ -344,6 +355,8 @@ async function loadData() {
   console.log("[vendus] loadData Firestore", $("statsRange")?.value || "today");
 
   try {
+    await loadAppCurrency();
+
     const [salesSnap, saleItemsSnap] = await Promise.all([
       getDocs(salesQuery),
       getDocs(saleItemsQuery)
@@ -475,7 +488,12 @@ function renderKpis(rows) {
 
   $("soldCount").textContent = String(soldCount);
   $("salesTotal").textContent = formatMoney(salesTotal);
-  $("netProfit").textContent = formatMoney(netProfit);
+
+  const netProfitEl = $("netProfit");
+  if (netProfitEl) {
+    netProfitEl.textContent = formatMoney(netProfit);
+  }
+
   $("debtTotal").textContent = formatMoney(debtTotal);
   $("resultCount").textContent = String(rows.length);
 }
