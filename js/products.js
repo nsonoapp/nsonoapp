@@ -1,4 +1,4 @@
-// products.js - VERSION FINALE ULTIME PRO + search   + vrai OFFLINE 
+// products.js v3 - VERSION FINALE ULTIME PRO + search   + vrai OFFLINE 
 import { 
   db, collection, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Timestamp, writeLog
 } from './firebase.js';
@@ -21,10 +21,11 @@ import {
   formatExpirationDate,
   buildBatchId
 } from "./expiration.js";
-import {
-  computeStockIncreaseFundingAmount,
-  recordStockFundingExpense
-} from "./finance/data.js";
+
+const PURCHASE_TYPE_TO_CATEGORY = {
+  Investissement: "investment",
+  Réinvestissement: "reinvestment"
+};
 
 // --- DOM ---
 const tableBody = document.getElementById('products-table');
@@ -220,8 +221,8 @@ function openProductModal(mode, data = null) {
     productFundingFields.classList.toggle("field-hidden", mode !== "add");
   }
 
-  const fundingInvestment = document.getElementById("productFundingInvestment");
-  const fundingReinvestment = document.getElementById("productFundingReinvestment");
+  const fundingInvestment = document.getElementById("invest");
+  const fundingReinvestment = document.getElementById("reinvest");
   if (fundingInvestment) {
     fundingInvestment.checked = false;
   }
@@ -325,10 +326,8 @@ function readProductForm() {
       document.getElementById("productHasExpiration")?.checked === true,
     expirationDateStr:
       document.getElementById("productExpirationDate")?.value || "",
-    isInvestment:
-      document.getElementById("productFundingInvestment")?.checked === true,
-    isReinvestment:
-      document.getElementById("productFundingReinvestment")?.checked === true
+    purchaseType:
+      document.querySelector('input[name="purchaseType"]:checked')?.value || ""
   };
 }
 
@@ -382,8 +381,16 @@ function validateProductForm(data, mode) {
     throw new Error("Date expiration requise pour produit périssable");
   }
 
-  if (mode === "add" && !data.isInvestment && !data.isReinvestment) {
-    throw new Error("Cochez Investissement ou Réinvestissement");
+  if (mode === "add" && !data.purchaseType) {
+    throw new Error("Sélectionnez Investissement ou Réinvestissement");
+  }
+
+  if (
+    mode === "add" &&
+    data.purchaseType &&
+    !PURCHASE_TYPE_TO_CATEGORY[data.purchaseType]
+  ) {
+    throw new Error("Type d'achat invalide");
   }
 
   return data;
@@ -487,8 +494,7 @@ async function processProductCreateOnline(data) {
     createdBy,
     hasExpiration,
     expirationDateStr,
-    isInvestment,
-    isReinvestment
+    purchaseType
   } = data;
 
   await checkUser(createdBy);
@@ -561,41 +567,22 @@ async function processProductCreateOnline(data) {
 
   const fundingAmount = Number(price_buy) * Number(stock);
   const productLabel = `${name}${variant ? ` (${variant})` : ""}`;
+  const expenseCategory = PURCHASE_TYPE_TO_CATEGORY[purchaseType];
 
-  if (fundingAmount > 0) {
-    const expenseTasks = [];
-
-    if (isInvestment) {
-      expenseTasks.push(
-        recordStockFundingExpense({
-          category: "investment",
-          amount: fundingAmount,
-          reason: `Investissement — ${productLabel}`,
-          relatedTo: prodRef.id,
-          note: `Stock initial: ${stock}`,
-          createdBy,
-          createdAt: now
-        })
-      );
-    }
-
-    if (isReinvestment) {
-      expenseTasks.push(
-        recordStockFundingExpense({
-          category: "reinvestment",
-          amount: fundingAmount,
-          reason: `Réinvestissement — ${productLabel}`,
-          relatedTo: prodRef.id,
-          note: `Stock initial: ${stock}`,
-          createdBy,
-          createdAt: now
-        })
-      );
-    }
-
-    if (expenseTasks.length) {
-      await Promise.all(expenseTasks);
-    }
+  if (fundingAmount > 0 && expenseCategory) {
+    await addDoc(collection(db, "expenses"), {
+      reason: `${purchaseType} — ${productLabel}`,
+      category: expenseCategory,
+      amount: fundingAmount,
+      type: "auto",
+      relatedTo: prodRef.id,
+      note: `Stock initial: ${stock}`,
+      status: "active",
+      isSystemCorrection: false,
+      createdBy,
+      createdAt: now,
+      updatedAt: now
+    });
   }
 
 }

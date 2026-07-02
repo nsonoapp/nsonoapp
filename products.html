@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
+<head> 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="
@@ -456,18 +456,19 @@ nav .nav-item.active{
   color:#333;
 }
 
-.modal-content label.checkbox-label{
+.modal-content label.radio-label{
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   gap:8px;
   font-weight:600;
   margin:8px 0;
   cursor:pointer;
 }
 
-.modal-content label.checkbox-label input[type="checkbox"]{
+.modal-content label.radio-label input[type="radio"]{
   width:auto;
-  margin:0;
+  margin:4px 0 0;
+  flex-shrink:0;
 }
 
 .field-hint{
@@ -597,14 +598,14 @@ nav .nav-item.active{
     </div>
 
     <div id="productFundingFields">
-      <p class="field-hint" style="margin-bottom:8px;font-weight:600;color:#333;">Origine du stock initial</p>
-      <label class="checkbox-label" for="productFundingInvestment">
-        <input type="checkbox" id="productFundingInvestment">
-        Investissement
+      <p class="field-hint" style="margin-bottom:8px;font-weight:600;color:#333;">Type d'achat (obligatoire)</p>
+      <label class="radio-label" for="invest">
+        <input type="radio" name="purchaseType" value="Investissement" id="invest" required>
+        Investissement (Apport extérieur)
       </label>
-      <label class="checkbox-label" for="productFundingReinvestment">
-        <input type="checkbox" id="productFundingReinvestment">
-        Réinvestissement
+      <label class="radio-label" for="reinvest">
+        <input type="radio" name="purchaseType" value="Réinvestissement" id="reinvest" required>
+        Réinvestissement (Achat via les bénéfices de l'entreprise)
       </label>
       <p id="productFundingHelp" class="field-hint">
         Réinvestissement = achat de ces produits par l'argent des bénéfices de l'entreprise.
