@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+default-src 'self';
+script-src 'self' 'unsafe-eval' https://www.gstatic.com https://esm.sh;
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;
+font-src 'self' https://fonts.gstatic.com;
+frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;
+worker-src 'self' blob:;
+base-uri 'self';
+form-action 'self';
+">
+<title>StockFlow — Gestion lots</title>
+<link rel="stylesheet" href="css/batch.css">
+</head>
+<body>
+
+<header>
+  <h3>StockFlow — Gestion lots</h3>
+  <div class="status" id="status">● …</div>
+</header>
+
+<div class="container">
+
+  <div class="top-bar">
+    <a class="back-link" href="../pages.html">← Navigation</a>
+    <a class="cross-link" href="batch_stats.html">📊 Statistiques lots</a>
+  </div>
+
+  <section class="section" id="productsSection">
+    <div class="section-title">Types de produits (module lots)</div>
+    <div class="section-sub">Catalogue isolé — Modifier, désactiver ou supprimer</div>
+    <div id="productsList"></div>
+  </section>
+
+  <section class="section" id="createProductSection">
+    <div class="section-title">Nouveau type de produit</div>
+    <div class="form-grid">
+      <div class="full">
+        <label for="productName">Nom du produit</label>
+        <input type="text" id="productName" maxlength="80" placeholder="Ex : Riz 25 kg">
+      </div>
+      <div class="full">
+        <label for="productNote">Note (optionnel)</label>
+        <input type="text" id="productNote" maxlength="200" placeholder="Variante, fournisseur…">
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" id="createProductBtn">Créer le produit</button>
+  </section>
+
+  <section class="section" id="createBatchSection">
+    <div class="section-title">Nouveau lot</div>
+    <div class="section-sub">Entrée stock avec coût total — marge calculée à la vente</div>
+    <div class="form-grid">
+      <div class="full">
+        <label for="batchProductSelect">Produit</label>
+        <select id="batchProductSelect"></select>
+      </div>
+      <div>
+        <label for="batchQty">Quantité initiale</label>
+        <input type="number" id="batchQty" min="1" step="1" placeholder="100">
+      </div>
+      <div>
+        <label for="batchCost">Coût total d'achat</label>
+        <input type="number" id="batchCost" min="0.01" step="0.01" placeholder="500.00">
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" id="createBatchBtn">Enregistrer le lot</button>
+  </section>
+
+  <section class="section" id="saleSection">
+    <div class="section-title">Vente fractionnée</div>
+    <div class="section-sub">Décrémente le lot et enregistre la marge (transaction Firestore)</div>
+    <div class="form-grid">
+      <div class="full">
+        <label for="saleBatchSelect">Lot actif</label>
+        <select id="saleBatchSelect"></select>
+      </div>
+      <div>
+        <label for="saleQty">Quantité vendue</label>
+        <input type="number" id="saleQty" min="1" step="1" placeholder="5">
+      </div>
+      <div>
+        <label for="saleAmount">Montant encaissé</label>
+        <input type="number" id="saleAmount" min="0" step="0.01" placeholder="150.00">
+      </div>
+      <div class="full">
+        <label for="saleReason">Raison</label>
+        <select id="saleReason">
+          <option value="sale">Vente</option>
+          <option value="sample">Échantillon</option>
+          <option value="promo">Promotion</option>
+        </select>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" id="recordSaleBtn">Enregistrer la vente</button>
+  </section>
+
+  <section class="section" id="batchesSection">
+    <div class="section-title">Lots enregistrés</div>
+    <div id="batchesList"></div>
+  </section>
+
+</div>
+
+<div id="editProductModal" class="modal" aria-hidden="true">
+  <div class="modal-content">
+    <h3>Modifier le produit</h3>
+    <label for="editProductName">Nom</label>
+    <input type="text" id="editProductName" maxlength="80">
+    <label for="editProductNote">Note</label>
+    <input type="text" id="editProductNote" maxlength="200">
+    <div class="modal-error" id="editProductError"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="editProductSaveBtn">Enregistrer</button>
+      <button type="button" class="btn btn-muted" id="editProductCancelBtn">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div id="editBatchModal" class="modal" aria-hidden="true">
+  <div class="modal-content">
+    <h3>Modifier le lot</h3>
+    <p class="section-sub">Uniquement si aucune vente n'a été enregistrée sur ce lot.</p>
+    <label for="editBatchQty">Quantité initiale</label>
+    <input type="number" id="editBatchQty" min="1" step="1">
+    <label for="editBatchCost">Coût total</label>
+    <input type="number" id="editBatchCost" min="0.01" step="0.01">
+    <div class="modal-error" id="editBatchError"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="editBatchSaveBtn">Enregistrer</button>
+      <button type="button" class="btn btn-muted" id="editBatchCancelBtn">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/batch-management.js"></script>
+</body>
+</html>

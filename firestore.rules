@@ -135,5 +135,18 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
+
+    // ── Module Batch (isolé) ───────────────────────────────────
+    match /batch_products/{id} {
+      allow read, write: if signedIn();
+    }
+
+    match /product_batches/{id} {
+      allow read, write: if signedIn();
+    }
+
+    match /batch_movements/{id} {
+      allow read, write: if signedIn();
+    }
   }
 }
