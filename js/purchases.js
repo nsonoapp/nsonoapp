@@ -4,6 +4,8 @@ import {
   db, collection, addDoc, getDocs, doc, updateDoc, query, where, serverTimestamp, getDoc, runTransaction, writeLog
 } from './firebase.js';
 import { getAuth, onAuthStateChanged } from "./auth.js";
+import { withEntityScope } from "./nsono-scope.js";
+import { bindFormAction, bindActionButton } from "./utils/buttonManager.js";
 
 import {
   isOffline,
@@ -529,7 +531,7 @@ async function processPurchaseOnline(data) {
       : 0;
 
   const purchaseRef =
-    await addDoc(purchasesCol, {
+    await addDoc(purchasesCol, withEntityScope({
 
       supplier,
 
@@ -539,15 +541,15 @@ async function processPurchaseOnline(data) {
 
       createdAt: now()
 
-    });
+    }));
 
-  const purchaseItemPayload = {
+  const purchaseItemPayload = withEntityScope({
     purchaseId: purchaseRef.id,
     productId,
     quantity,
     price: unitPrice,
     createdAt: now()
-  };
+  });
 
   if (productHasExpiration && expirationTimestamp) {
     purchaseItemPayload.expirationDate = expirationTimestamp;
@@ -640,7 +642,7 @@ async function processPurchaseOnline(data) {
       movementPayload.batchId = buildBatchId();
     }
 
-    tx.set(moveRef, movementPayload);
+    tx.set(moveRef, withEntityScope(movementPayload));
 
   });
 
@@ -712,8 +714,7 @@ async function processPurchaseOnline(data) {
 
 // --- AJOUT ACHAT ---
 if (purchaseForm) {
-  purchaseForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  bindFormAction(purchaseForm, async () => {
     if (!currentUserId) {
       alert("Utilisateur non connecté");
       debug("Utilisateur non connecté");
@@ -1237,7 +1238,7 @@ async function applyManualStockUpdate(productId, newQty, expirationDateStr = "")
       movementPayload.batchId = buildBatchId();
     }
 
-    tx.set(moveRef, movementPayload);
+    tx.set(moveRef, withEntityScope(movementPayload));
 
     const logRef = doc(logsCol);
 
@@ -1263,7 +1264,7 @@ async function applyManualStockUpdate(productId, newQty, expirationDateStr = "")
   await loadStock();
 }
 
-document.getElementById("stockAdjustSaveBtn")?.addEventListener("click", () => {
+bindActionButton(document.getElementById("stockAdjustSaveBtn"), () => {
   submitStockAdjust();
 });
 

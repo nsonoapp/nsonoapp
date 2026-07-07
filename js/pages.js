@@ -1,27 +1,17 @@
-import { getAuth, onAuthStateChanged } from "./auth.js"; // Auth
-import { db, collection, getDocs } from "./firebase.js";
+import { getAuth, onAuthStateChanged } from "./auth.js";
+import { db, doc, getDoc } from "./firebase.js";
+import { canAccessAdmin, loadUserPermissions } from "../admin/js/permissions.js";
 
-/* ================================
-   AUTH + ROLE CONTROL
-================================ */
 const auth = getAuth();
+const adminNavCard = document.getElementById("adminNavCard");
 
-const blockedScreen = document.getElementById("blocked");
-const grid = document.getElementById("pages-grid");
-
-/* ================================
-   REDIRECT SAFE
-================================ */
 function go(page) {
   if (!page) return;
   window.location.href = page;
 }
 
-/* ================================
-   HIDE ALL ON BLOCK
-================================ */
 function blockAccess() {
-  document.body.innerHTML = "";
+  document.body.replaceChildren();
   document.body.style.background = "black";
 
   const div = document.createElement("div");
@@ -31,28 +21,31 @@ function blockAccess() {
   div.style.alignItems = "center";
   div.style.justifyContent = "center";
   div.style.fontSize = "20px";
-  div.innerText = "⛔ Accès refusé";
+  div.textContent = "⛔ Accès refusé";
 
   document.body.appendChild(div);
 }
 
-/* ================================
-   GET USER ROLE
-================================ */
 async function getUserRole(uid) {
-  const snap = await getDocs(collection(db, "users"));
-
-  const me = snap.docs.find(d => d.id === uid);
-  if (!me) return null;
-
-  return me.data().role;
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) {
+    return null;
+  }
+  return snap.data().role;
 }
 
-/* ================================
-   INIT SYSTEM
-================================ */
-onAuthStateChanged(auth, async (user) => {
+function unlockAdminNav(permissions) {
+  if (!adminNavCard) {
+    return;
+  }
+  if (!canAccessAdmin(permissions)) {
+    adminNavCard.classList.add("locked");
+    return;
+  }
+  adminNavCard.classList.remove("locked");
+}
 
+onAuthStateChanged(auth, async user => {
   if (!user) {
     blockAccess();
     return;
@@ -65,14 +58,15 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  /* ================================
-     ENABLE NAV ONLY IF AUTHORIZED
-  ================================= */
+  const permissions = await loadUserPermissions(user.uid);
+  unlockAdminNav(permissions);
+
   document.querySelectorAll(".card").forEach(card => {
     card.addEventListener("click", () => {
-      const page = card.dataset.page;
-      go(page);
+      if (card.classList.contains("locked")) {
+        return;
+      }
+      go(card.dataset.page);
     });
   });
-
 });

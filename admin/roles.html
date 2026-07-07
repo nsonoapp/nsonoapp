@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B3D2E">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self';">
+<link rel="manifest" href="../manifest.json">
+<title>Rôles — NSONO Admin</title>
+<link rel="stylesheet" href="css/admin.css">
+<script src="../js/ui.js" defer></script>
+<script src="../js/nav.js" defer></script>
+<script src="../js/pwa.js" defer></script>
+</head>
+<body>
+
+<header>
+  <h3>NSONO — Rôles</h3>
+  <div class="status" id="status">● Online</div>
+</header>
+
+<div class="container">
+  <a class="back-link" href="admin.html">← Administration</a>
+  <div id="adminContextBanner"></div>
+  <div id="adminDebug" style="font-size:13px"></div>
+
+  <div class="form-box">
+    <h3>Nouveau rôle</h3>
+    <input type="text" id="roleName" placeholder="Nom du rôle (ex. Gestionnaire Dépôt)" maxlength="80">
+    <div id="scopesBox" class="scopes-box"></div>
+    <button type="button" class="btn" id="createRoleBtn">Créer le rôle</button>
+  </div>
+
+  <div class="list" id="rolesList"></div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="../index.html" class="nav-item" data-page="index.html">🛒 Vente</a>
+  <a href="../products.html" class="nav-item" data-page="products.html">📦 Produits</a>
+  <a href="../pages.html" class="nav-item" data-page="pages.html">📂 Menu</a>
+  <a href="admin.html" class="nav-item active" data-page="admin.html">⚙️ Admin</a>
+  <a href="../stats.html" class="nav-item" data-page="stats.html">📊 Stats</a>
+</nav>
+
+<script type="module" src="js/roles.js"></script>
+</body>
+</html>

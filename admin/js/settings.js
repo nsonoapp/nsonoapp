@@ -1,21 +1,44 @@
-// settings.js
+// settings.js — admin
 import {
   db,
   collection,
   getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
   doc,
   getDoc,
   serverTimestamp,
   writeLog
-} from "./firebase.js";
+} from "../../js/firebase.js";
 
 import {
   getAuth,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+
+import {
+  loadSettings,
+  saveSettings,
+  resolveActiveSettingsId,
+  getEntitySettingsId,
+  getGlobalSettingsId
+} from "../../js/services/settingsService.js";
+
+import {
+  isAppLocked,
+  setAppLocked,
+  updateData,
+  deleteData,
+  handleWriteError
+} from "../../js/services/firebaseService.js";
+
+import {
+  canAccessAdmin,
+  hasScope,
+  loadUserPermissions
+} from "./permissions.js";
+
+import { isMasterAdmin } from "./entity-context.js";
+import { bindActionButton } from "../../js/utils/buttonManager.js";
+import { ADMIN_COLLECTIONS } from "./admin-collections.js";
 
 const auth = getAuth();
 
@@ -24,7 +47,7 @@ const auth = getAuth();
 ========================= */
 
 let currentUserId = null;
-let currentUserRole = null;
+let activeSettingsId = resolveActiveSettingsId();
 
 const usersCollection = collection(db, "users");
 
@@ -204,13 +227,34 @@ function createBadge(role) {
 /* =========================
    config 
 ========================= */
+
+async function resolveConfigData() {
+  const primary = await loadSettings(activeSettingsId);
+  if (primary.exists && primary.data) {
+    return primary.data;
+  }
+
+  if (activeSettingsId !== getGlobalSettingsId()) {
+    const global = await loadSettings(getGlobalSettingsId());
+    if (global.exists && global.data) {
+      return global.data;
+    }
+  }
+
+  const legacySnap = await getDoc(doc(db, "appConfig", "main"));
+  if (legacySnap.exists()) {
+    return legacySnap.data();
+  }
+
+  return null;
+}
+
 async function loadAppConfig() {
   try {
-    const configRef = doc(db, "appConfig", "main");
-    const snap = await getDoc(configRef);
+    let data = await resolveConfigData();
 
-    if (!snap.exists()) {
-      await setDoc(configRef, {
+    if (!data) {
+      await saveSettings(activeSettingsId, {
         shopName: "Shop",
         shopAddress: "",
         shopPhone: "",
@@ -220,15 +264,17 @@ async function loadAppConfig() {
         lowStockLimit: 10,
         enableOffline: true,
         enableExpiration: false,
-        expirationAlertDays: 30,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        expirationAlertDays: 30
       });
-
-      return loadAppConfig();
+      data = (await loadSettings(activeSettingsId)).data;
     }
 
-    const data = snap.data();
+    const scopeLabel = document.getElementById("configScopeLabel");
+    if (scopeLabel) {
+      scopeLabel.textContent = activeSettingsId === getGlobalSettingsId()
+        ? "Configuration globale (main_config)"
+        : `Configuration entité (${activeSettingsId})`;
+    }
 
     /* =========================
        DISPLAY TABLE (READ ONLY)
@@ -348,7 +394,7 @@ async function loadAppConfig() {
        BIND SAVE
     ========================= */
 
-    document.getElementById("saveConfigBtn").onclick = updateAppConfig;
+    bindActionButton(document.getElementById("saveConfigBtn"), updateAppConfig);
 
   } catch (err) {
     console.error(err);
@@ -359,15 +405,12 @@ async function loadAppConfig() {
   //modifer config
   async function updateAppConfig() {
   try {
-    const configRef = doc(db, "appConfig", "main");
-    const snap = await getDoc(configRef);
+    const data = await resolveConfigData();
 
-    if (!snap.exists()) {
+    if (!data) {
       showMessage("Config introuvable");
       return;
     }
-
-    const data = snap.data();
 
     const ok = await showConfirmModal(
       "Confirmation",
@@ -397,28 +440,23 @@ async function loadAppConfig() {
        (currency LOCKED)
     ========================= */
 
-    await updateDoc(configRef, {
+    await saveSettings(activeSettingsId, {
       shopName,
       shopAddress,
       shopPhone,
       logoUrl,
-
       lowStockLimit,
       enableOffline,
       enableExpiration,
       expirationAlertDays,
-
-      // 🔒 NEVER CHANGE
       currency: data.currency,
-      currencySymbol: data.currencySymbol,
-
-      updatedAt: serverTimestamp()
+      currencySymbol: data.currencySymbol
     });
 
     await writeLog({
       userId: currentUserId,
       action: "config_update",
-      targetId: "main",
+      targetId: activeSettingsId,
       details: {
         shopName,
         enableOffline,
@@ -432,9 +470,63 @@ async function loadAppConfig() {
     await loadAppConfig();
 
   } catch (err) {
+    if (handleWriteError(err)) return;
     console.error(err);
     showMessage("❌ Erreur update config");
   }
+}
+
+function initLockModeUI() {
+  const btn = document.getElementById("lockModeToggle");
+  const status = document.getElementById("lockModeStatus");
+  if (!btn || !status) return;
+
+  const refresh = () => {
+    const locked = isAppLocked();
+    status.textContent = locked
+      ? "Verrouillé — les écritures sont bloquées sur cet appareil."
+      : "Déverrouillé — les écritures sont autorisées sur cet appareil.";
+    btn.textContent = locked
+      ? "Déverrouiller cet appareil"
+      : "Verrouiller les écritures (local)";
+  };
+
+  refresh();
+  btn.addEventListener("click", () => {
+    setAppLocked(!isAppLocked());
+    refresh();
+  });
+}
+
+async function loadEntitySettingsSelector() {
+  const wrap = document.getElementById("entitySettingsSelectWrap");
+  const select = document.getElementById("entitySettingsSelect");
+  if (!wrap || !select || !isMasterAdmin()) {
+    return;
+  }
+
+  wrap.classList.remove("field-hidden");
+  select.replaceChildren();
+
+  const globalOpt = document.createElement("option");
+  globalOpt.value = getGlobalSettingsId();
+  globalOpt.textContent = "Global (main_config)";
+  select.appendChild(globalOpt);
+
+  const entitiesSnap = await getDocs(collection(db, ADMIN_COLLECTIONS.entities));
+  entitiesSnap.forEach(entityDoc => {
+    const entity = entityDoc.data();
+    const opt = document.createElement("option");
+    opt.value = getEntitySettingsId(entityDoc.id);
+    opt.textContent = entity.name || entityDoc.id;
+    select.appendChild(opt);
+  });
+
+  select.value = activeSettingsId;
+  select.addEventListener("change", async () => {
+    activeSettingsId = select.value;
+    await loadAppConfig();
+  });
 }
 
 /* =========================
@@ -446,7 +538,7 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
 
     window.location.href =
-      "login.html";
+      "../login.html";
 
     return;
   }
@@ -471,12 +563,11 @@ onAuthStateChanged(auth, async (user) => {
     const userData =
       userSnap.data();
 
-    currentUserRole =
-      userData.role;
+    const permissions = await loadUserPermissions(currentUserId);
+    const canManageSettings = canAccessAdmin(permissions)
+      || hasScope("scope_settings", permissions);
 
-    if (
-      currentUserRole !== "admin"
-    ) {
+    if (!canManageSettings) {
 
       document.body.replaceChildren();
 
@@ -502,6 +593,15 @@ onAuthStateChanged(auth, async (user) => {
 
       document.body.appendChild(denied);
 
+      return;
+    }
+
+    initLockModeUI();
+    await loadEntitySettingsSelector();
+
+    if (!canAccessAdmin(permissions)) {
+      document.getElementById("usersSection")?.remove();
+      await loadAppConfig();
       return;
     }
 
@@ -567,7 +667,13 @@ async function loadUsers() {
       const status = document.createElement("span");  
       status.className = "status-badge";  
 
-      if (data.isActive === false) {  
+      if (data.approvalStatus === "pending") {
+        status.textContent = "En attente";
+        status.classList.add("inactive");
+      } else if (data.approvalStatus === "rejected") {
+        status.textContent = "Refusé";
+        status.classList.add("inactive");
+      } else if (data.isActive === false) {  
         status.textContent = "Désactivé";  
         status.classList.add("inactive");  
       } else {  
@@ -582,25 +688,25 @@ async function loadUsers() {
 
       /* ROLE BUTTON */  
       const roleBtn = createButton("Changer rôle", "btn-action");  
-      roleBtn.addEventListener("click", async () => {  
-        try {  
-          const nextRole = data.role === "admin" ? "seller" : "admin";  
-          await updateDoc(doc(db, "users", userId), {  
-            role: nextRole,  
-            updatedAt: serverTimestamp()  
-          });  
+      bindActionButton(roleBtn, async () => {
+        try {
+          const nextRole = data.role === "admin" ? "seller" : "admin";
+          await updateData(doc(db, "users", userId), {
+            role: nextRole,
+            updatedAt: serverTimestamp()
+          });
           await writeLog({
             userId: currentUserId,
             action: "user_role_update",
             targetId: userId,
             details: { nextRole }
           });
-          showMessage("Rôle mis à jour");  
-          loadUsers();  
-        } catch (err) {  
-          console.error(err);  
-          alert("Erreur modification rôle");  
-        }  
+          showMessage("Rôle mis à jour");
+          loadUsers();
+        } catch (err) {
+          console.error(err);
+          alert("Erreur modification rôle");
+        }
       });  
 
       /* STATUS BUTTON */  
@@ -608,33 +714,58 @@ async function loadUsers() {
         data.isActive === false ? "Activer" : "Désactiver",
         data.isActive === false ? "btn-success" : "btn-warning"
       );  
-      statusBtn.addEventListener("click", async () => {  
-        try {  
-          await updateDoc(doc(db, "users", userId), {  
-            isActive: data.isActive === false,  
-            updatedAt: serverTimestamp()  
-          });  
+      bindActionButton(statusBtn, async () => {
+        try {
+          await updateData(doc(db, "users", userId), {
+            isActive: data.isActive === false,
+            updatedAt: serverTimestamp()
+          });
           await writeLog({
             userId: currentUserId,
             action: "user_status_update",
             targetId: userId,
             details: { isActive: data.isActive === false }
           });
-          showMessage("Utilisateur mis à jour");  
-          loadUsers();  
-        } catch (err) {  
-          console.error(err);  
-          alert("Erreur statut utilisateur");  
-        }  
+          showMessage("Utilisateur mis à jour");
+          loadUsers();
+        } catch (err) {
+          console.error(err);
+          alert("Erreur statut utilisateur");
+        }
       });  
+
+      if (data.approvalStatus === "pending") {
+        const approveBtn = createButton("Approuver", "btn-success");
+        bindActionButton(approveBtn, async () => {
+          try {
+            await updateData(doc(db, "users", userId), {
+              approvalStatus: "approved",
+              isActive: true,
+              updatedAt: serverTimestamp()
+            });
+            await writeLog({
+              userId: currentUserId,
+              action: "user_approve",
+              targetId: userId,
+              details: { email: data.email || null }
+            });
+            showMessage("Utilisateur approuvé");
+            loadUsers();
+          } catch (err) {
+            console.error(err);
+            alert("Erreur approbation");
+          }
+        });
+        actionsTd.appendChild(approveBtn);
+      }
 
       /* DELETE BUTTON */  
       const deleteBtn = createButton("Supprimer", "btn-danger");  
-      deleteBtn.addEventListener("click", async () => {  
-        if (userId === currentUserId) {  
-          alert("Impossible de supprimer ton compte");  
-          return;  
-        }  
+      bindActionButton(deleteBtn, async () => {
+        if (userId === currentUserId) {
+          alert("Impossible de supprimer ton compte");
+          return;
+        }
         const confirmDelete = await showConfirmModal(
           "Supprimer utilisateur",
           "Supprimer cet utilisateur ?"
@@ -648,10 +779,10 @@ async function loadUsers() {
             ? Number(metaSnap.data().usersCount) || 0
             : 0;
 
-          await deleteDoc(doc(db, "users", userId));
+          await deleteData(doc(db, "users", userId));
 
           if (metaSnap.exists() && currentCount > 0) {
-            await updateDoc(metaRef, {
+            await updateData(metaRef, {
               usersCount: currentCount - 1
             });
           }
@@ -661,12 +792,12 @@ async function loadUsers() {
             action: "user_delete",
             targetId: userId
           });
-          showMessage("Utilisateur supprimé");  
+          showMessage("Utilisateur supprimé");
           loadUsers();
-        } catch (err) {  
-          console.error(err);  
-          alert("Erreur suppression");  
-        }  
+        } catch (err) {
+          console.error(err);
+          alert("Erreur suppression");
+        }
       });  
 
       actionsTd.appendChild(roleBtn);  

@@ -9,6 +9,7 @@ import {
   Timestamp
 } from "../firebase.js";
 import { COLLECTIONS, mapDocs } from "./collections.js";
+import { applyEntityScope } from "../nsono-scope.js";
 
 function itemTime(item) {
   if (item.createdAt?.toDate) {
@@ -58,7 +59,7 @@ export async function loadFinanceByCollection(collectionName, dateRange = null) 
     constraints.push(orderBy("createdAt", "desc"));
 
     const snap = await getDocs(
-      query(collection(db, collectionName), ...constraints)
+      query(collection(db, collectionName), ...applyEntityScope(constraints))
     );
 
     const items = mapDocs(snap);

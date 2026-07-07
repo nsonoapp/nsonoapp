@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B3D2E">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self';">
+<link rel="manifest" href="../manifest.json">
+<title>Onboarding — NSONO</title>
+<link rel="stylesheet" href="css/admin.css">
+<script src="../js/ui.js" defer></script>
+<script src="../js/pwa.js" defer></script>
+</head>
+<body>
+
+<header>
+  <h3>NSONO — Installation société</h3>
+  <div class="status" id="status">● Online</div>
+</header>
+
+<div class="container">
+  <a class="back-link" href="admin.html">← Administration</a>
+  <div id="onboardingContextBanner"></div>
+  <div id="onboardingDebug" style="font-size:13px"></div>
+
+  <div class="form-box" id="onboardingForm">
+    <h3>Créer la société unique</h3>
+    <p style="margin:0 0 12px;font-size:13px;color:#666">
+      Une seule société par base Firebase (<code>companies/main</code>). Cette étape ne peut être exécutée qu'une fois. Le mot de passe va dans <code>company_secrets/main</code> (illisible côté client).
+    </p>
+    <div class="form-grid">
+      <input type="text" id="companyName" placeholder="Nom de la société" maxlength="80">
+      <input type="text" id="companyCode" placeholder="Code court (optionnel)" maxlength="32">
+      <input type="password" id="companyPassword" placeholder="Mot de passe société (min. 6)" minlength="6" maxlength="64">
+      <input type="text" id="entityName" placeholder="Première entité (ex. Siège)" maxlength="80">
+    </div>
+    <button type="button" class="btn" id="onboardingSubmitBtn">Initialiser NSONO</button>
+  </div>
+</div>
+
+<script type="module" src="js/onboarding.js"></script>
+</body>
+</html>

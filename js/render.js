@@ -88,6 +88,8 @@ export async function render(chartApi) {
     previousPeriod.losses
   );
 
+  renderOperationalFinance(sales, expenses, losses);
+
   renderFinancialHealth(sales, expenses, losses);
   renderStockHealth();
   renderDebts();
@@ -106,6 +108,188 @@ function sumExpensesByCategory(expenses, category) {
   return expenses
     .filter(e => e.category === category)
     .reduce((s, e) => s + n(e.amount), 0);
+}
+
+const INVESTMENT_CATEGORIES = new Set(["investment", "reinvestment"]);
+
+function getProductById(productId) {
+  if (!productId) {
+    return null;
+  }
+  return state.products.find(p => p.id === productId) || null;
+}
+
+function isToolsProduct(productId) {
+  return getProductById(productId)?.stockType === "tools";
+}
+
+function isActiveExpense(expense) {
+  return expense?.isSystemCorrection !== true && expense?.status !== "cancelled";
+}
+
+function isActiveLoss(loss) {
+  return loss?.isSystemCorrection !== true && loss?.status !== "cancelled";
+}
+
+function getSaleItemsForSales(sales) {
+  const saleIds = new Set(sales.map(s => s.id));
+  return state.saleItems.filter(i => saleIds.has(i.saleId || i.sale_id));
+}
+
+function splitSaleMetricsByStockType(items) {
+  const metrics = {
+    sales: { revenue: 0, profit: 0, quantity: 0 },
+    tools: { revenue: 0, profit: 0, quantity: 0 }
+  };
+
+  items.forEach(item => {
+    const productId = item.productId || item.product_id;
+    const bucket = isToolsProduct(productId) ? metrics.tools : metrics.sales;
+    bucket.revenue += n(item.price) * n(item.quantity);
+    bucket.profit += n(item.profit);
+    bucket.quantity += n(item.quantity);
+  });
+
+  return metrics;
+}
+
+function sumPurchasesByStockType(purchases, stockType) {
+  const purchaseIds = new Set(purchases.map(p => p.id));
+
+  return state.purchaseItems
+    .filter(i => purchaseIds.has(i.purchaseId || i.purchase_id))
+    .filter(i => {
+      const tools = isToolsProduct(i.productId || i.product_id);
+      return stockType === "tools" ? tools : !tools;
+    })
+    .reduce(
+      (sum, i) => sum + n(i.quantity) * n(i.price ?? i.unitPrice ?? i.purchase_price),
+      0
+    );
+}
+
+function sumInvestmentExpenses(expenses, { toolsOnly = false } = {}) {
+  return expenses
+    .filter(isActiveExpense)
+    .filter(e => INVESTMENT_CATEGORIES.has(e.category))
+    .filter(e => {
+      if (!toolsOnly) {
+        return true;
+      }
+      return isToolsProduct(e.relatedTo);
+    })
+    .reduce((sum, e) => sum + n(e.amount), 0);
+}
+
+function calcStockValueByStockType(stockType) {
+  return state.products
+    .filter(p => (stockType === "tools" ? p.stockType === "tools" : p.stockType !== "tools"))
+    .reduce((sum, p) => sum + n(p.stock_current) * n(p.price_buy || p.purchase_price), 0);
+}
+
+function renderOperationalFinance(sales, expenses, losses) {
+  const saleItems = getSaleItemsForSales(sales);
+  const { sales: salesFlow, tools: toolsFlow } = splitSaleMetricsByStockType(saleItems);
+
+  const operatingExpenses = expenses
+    .filter(isActiveExpense)
+    .filter(e => !INVESTMENT_CATEGORIES.has(e.category))
+    .reduce((sum, e) => sum + n(e.amount), 0);
+
+  const lossesTotal = losses
+    .filter(isActiveLoss)
+    .reduce((sum, e) => sum + n(e.amount), 0);
+
+  const investmentOnlyTotal = sumExpensesByCategory(
+    expenses.filter(isActiveExpense),
+    "investment"
+  );
+  const reinvestmentTotal = sumExpensesByCategory(
+    expenses.filter(isActiveExpense),
+    "reinvestment"
+  );
+  const capitalExcludedTotal = investmentOnlyTotal + reinvestmentTotal;
+
+  const toolsPurchases = sumPurchasesByStockType(state.purchases, "tools");
+  const salesPurchases = sumPurchasesByStockType(state.purchases, "sales");
+  const toolsStockValue = calcStockValueByStockType("tools");
+  const salesStockValue = calcStockValueByStockType("sales");
+  const toolsInvestExpenses = sumInvestmentExpenses(expenses, { toolsOnly: true });
+
+  const pureOperationalBenefit =
+    salesFlow.profit - operatingExpenses - lossesTotal;
+
+  setText("opSalesRevenueValue", formatMoney(salesFlow.revenue));
+  setText("opSalesGrossProfitValue", formatMoney(salesFlow.profit));
+  setText("opToolsPurchaseValue", formatMoney(toolsPurchases));
+  setText("opToolsStockValue", formatMoney(toolsStockValue));
+  setText("opOperatingExpensesValue", formatMoney(operatingExpenses));
+  setText("opPureBenefitValue", formatMoney(pureOperationalBenefit));
+
+  const hint = $("opPureBenefitHint");
+  if (hint) {
+    hint.textContent =
+      `${formatMoney(salesFlow.profit)} − ${formatMoney(operatingExpenses)} − ${formatMoney(lossesTotal)}`;
+  }
+
+  const breakdown = $("opFinanceBreakdown");
+  if (!breakdown) {
+    return;
+  }
+
+  breakdown.replaceChildren();
+
+  const intro = document.createElement("p");
+  intro.textContent =
+    "Vision de rentabilité opérationnelle pure : les flux investissement et réinvestissement sont suivis à part et exclus du bénéfice opérationnel.";
+  breakdown.appendChild(intro);
+
+  const list = document.createElement("div");
+  list.className = "finance-breakdown-list";
+
+  const rows = [
+    ["Revenus ventes (articles vendables)", formatMoney(salesFlow.revenue)],
+    ["Bénéfice brut ventes", formatMoney(salesFlow.profit)],
+    ["Achats stock vente (période)", formatMoney(salesPurchases)],
+    ["Valeur stock vente actuel", formatMoney(salesStockValue)],
+    ["Achats outils / matériel (période)", formatMoney(toolsPurchases)],
+    ["Valeur stock outils actuel", formatMoney(toolsStockValue)],
+    ["Investissements (exclus du calcul)", formatMoney(investmentOnlyTotal)],
+    ["Réinvestissements (exclus du calcul)", formatMoney(reinvestmentTotal)],
+    ["Invest./réinvest. liés aux outils", formatMoney(toolsInvestExpenses)],
+    ["Dépenses opérationnelles", formatMoney(operatingExpenses)],
+    ["Pertes actives", formatMoney(lossesTotal)],
+    ["Bénéfice opérationnel pur", formatMoney(pureOperationalBenefit)]
+  ];
+
+  if (toolsFlow.revenue > 0 || toolsFlow.profit > 0) {
+    rows.splice(2, 0,
+      ["Revenus outils (anomalie vente)", formatMoney(toolsFlow.revenue)],
+      ["Bénéfice outils (anomalie vente)", formatMoney(toolsFlow.profit)]
+    );
+  }
+
+  rows.forEach(([label, value]) => {
+    const row = document.createElement("div");
+    row.className = "finance-breakdown-row";
+
+    const labelEl = document.createElement("span");
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement("span");
+    valueEl.textContent = value;
+
+    row.append(labelEl, valueEl);
+    list.appendChild(row);
+  });
+
+  breakdown.appendChild(list);
+
+  const note = document.createElement("p");
+  note.style.marginTop = "10px";
+  note.textContent =
+    `Total invest. + réinvest. période : ${formatMoney(capitalExcludedTotal)} — non déduit du bénéfice opérationnel pur.`;
+  breakdown.appendChild(note);
 }
 
 function calcPotentialMinProfit(products) {

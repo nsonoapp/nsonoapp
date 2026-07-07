@@ -1,4 +1,4 @@
-✅ RÈGLE PRO ERP FIREBASE — STOCKFLOW (requêtes actuelles + futures réalistes)
+✅ RÈGLE PRO ERP FIREBASE — NSONO (requêtes actuelles + futures réalistes)
 
 Quand un champ sert souvent de filtre
 ET
@@ -247,7 +247,7 @@ getDoc / getDocs sans where composite → pas d’index composite à créer
 
 ---
 
-✅ firestore.indexes.json — COMPLET PRO (actuel + futures réalistes StockFlow)
+✅ firestore.indexes.json — COMPLET PRO (actuel + futures réalistes NSONO)
 
 {
   "indexes": [
@@ -475,7 +475,7 @@ purchases
 
 ---
 
-✅ CONCLUSION PRO STOCKFLOW
+✅ CONCLUSION PRO NSONO
 
 Ton intuition est correcte : dans cet ERP, les filtres finissent presque toujours avec createdAt DESC.
 

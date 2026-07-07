@@ -13,7 +13,9 @@ import {
   limit
 } from "./firebase.js";
 import { auth, onAuthStateChanged } from "./auth.js";
+import { applyEntityScope } from "./nsono-scope.js";
 import { getAppConfig } from "./appConfig.js";
+import { bindActionButton } from "./utils/buttonManager.js";
 
 export const $ = id => document.getElementById(id);
 export const n = v => Number(v) || 0;
@@ -99,11 +101,11 @@ function bindEvents() {
     updateDateLimits();
   });
 
-  $("applyFiltersBtn")?.addEventListener("click", async () => {
+  bindActionButton($("applyFiltersBtn"), async () => {
     await loadData();
   });
 
-  $("refreshBtn")?.addEventListener("click", async () => {
+  bindActionButton($("refreshBtn"), async () => {
     await loadData();
   });
 
@@ -140,7 +142,7 @@ function buildSalesQuery() {
 
   constraints.push(orderBy("createdAt", "desc"));
 
-  return query(collection(db, "sales"), ...constraints);
+  return query(collection(db, "sales"), ...applyEntityScope(constraints));
 }
 
 function buildDateRange() {
@@ -206,7 +208,7 @@ function buildCollectionQuery(collectionName) {
 
   constraints.push(orderBy("createdAt", "desc"));
 
-  return query(collection(db, collectionName), ...constraints);
+  return query(collection(db, collectionName), ...applyEntityScope(constraints));
 }
 
 function buildRecentListQuery(collectionName) {
@@ -224,7 +226,7 @@ function buildRecentListQuery(collectionName) {
   constraints.push(orderBy("createdAt", "desc"));
   constraints.push(limit(STATS_LIST_LIMIT));
 
-  return query(collection(db, collectionName), ...constraints);
+  return query(collection(db, collectionName), ...applyEntityScope(constraints));
 }
 
 function buildOpenDebtsQuery(listOnly = false) {
@@ -237,7 +239,7 @@ function buildOpenDebtsQuery(listOnly = false) {
     constraints.push(limit(STATS_LIST_LIMIT));
   }
 
-  return query(collection(db, "debts"), ...constraints);
+  return query(collection(db, "debts"), ...applyEntityScope(constraints));
 }
 
 export function formatMoney(v) {
@@ -582,7 +584,7 @@ function buildPdfPayload() {
 
   return {
     meta: {
-      shopName: state.config?.shopName || "StockFlow",
+      shopName: state.config?.shopName || "NSONO",
       shopAddress: state.config?.shopAddress || "",
       shopPhone: state.config?.shopPhone || "",
       currency: state.currency,

@@ -1,0 +1,27 @@
+ :
+### Prompt à copier dans Cursor :
+> "Agis en tant qu'architecte logiciel senior. Je veux refactoriser mon application **NSONO** pour qu'elle soit plus facile à maintenir, sans complexité inutile (pas de sur-ingénierie type Silicon Valley).
+> **1. Structure de dossiers (Validation requise) :**
+>  * Propose-moi une réorganisation de mes dossiers JS actuels pour centraliser les écritures Firebase (Service Firebase) et séparer les logiques.
+>  * **Règle d'or :** Tu ne dois créer AUCUN nouveau fichier sans m'en demander l'autorisation, en m'expliquant son rôle et sa nécessité. Si tu penses qu'un fichier est inutile pour la maintenance, ne l'ajoute pas.
+>  * L'objectif est de regrouper les fonctions Firebase pour ne plus répéter les instructions d'écriture dans chaque fichier JS.
+> **2. Navigation et UI Intelligente :**
+>  * Refactorise la navigation : remplace les menus actuels par un seul composant (tiroir/drawer) intelligent.
+>  * **Logique Drawer :**
+>    * Mobile : Menu hamburger qui se ferme en cliquant sur l'écran.
+>    * PC/Tablette : Menu fixe (toujours visible) à droite de l'écran.
+>    * Sécurité : Le tiroir doit lire le rôle de l'utilisateur. Si l'utilisateur n'est pas Admin, les liens vers les pages Admin (settings, stats) doivent être masqués automatiquement dans le menu.
+>  * Création d'un header dynamique : Une seule portion de code (ou un template) qui affiche le titre de la page courante.
+> **3. Logique métier :**
+>  * Ne touche pas à la logique métier (calcul des stocks, savon, outils). L'application doit continuer de fonctionner exactement comme aujourd'hui.
+>  * Lors du passage en structure 'senior', réarrange le code existant par copier-coller propre.
+
+Concernant la navigation, concentre ton intervention uniquement sur la refonte de la barre de navigation globale pour créer le tiroir (drawer) intelligent. Tu dois laisser intacts les fichiers de raccourcis spécifiques (fichiers nommés 'nav') déjà présents sur chaque page, car ils remplissent un rôle distinct et ne doivent pas être modifiés. Ta mission est de décomposer la structure actuelle de la navigation principale pour intégrer le tiroir dynamique sans altérer ces raccourcis de navigation existants.
+
+> **4. Gestion des stocks (Tools vs Sales) :**
+>  * Ajoute la distinction : les 'Outils' ne sont pas vendables. Adapte les interfaces de saisie pour que cette règle soit respectée dans le code métier.
+> **Instructions pour Cursor :**
+>  * Étape 1 : Analyse ma structure actuelle.
+>  * Étape 2 : Propose-moi ta réorganisation des dossiers et les noms de fichiers nécessaires (justifie chaque ajout).
+>  * Étape 3 : Attends ma validation avant de commencer le déplacement des fichiers et le refactoring du code."
+> 

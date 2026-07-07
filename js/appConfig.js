@@ -1,4 +1,5 @@
 import { db, doc, getDoc } from "./firebase.js";
+import { resolveActiveSettingsId, getGlobalSettingsId } from "./services/settingsService.js";
 
 /* =========================
    CACHE MEMORY + LOCAL
@@ -36,11 +37,19 @@ export async function getAppConfig(forceRefresh = false) {
   // 3. FIREBASE (source of truth)
   try {
 
-    const ref = doc(db, "appConfig", "main");
-    const snap = await getDoc(ref);
+    const settingsId = resolveActiveSettingsId();
+    let snap = await getDoc(doc(db, "settings", settingsId));
+
+    if (!snap.exists() && settingsId !== getGlobalSettingsId()) {
+      snap = await getDoc(doc(db, "settings", getGlobalSettingsId()));
+    }
 
     if (!snap.exists()) {
-      throw new Error("appConfig introuvable");
+      snap = await getDoc(doc(db, "appConfig", "main"));
+    }
+
+    if (!snap.exists()) {
+      throw new Error("Configuration introuvable");
     }
 
     const data = snap.data();

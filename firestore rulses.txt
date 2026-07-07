@@ -1,4 +1,4 @@
-// StockFlow — règles Firestore (générales)
+// NSONO — règles Firestore (générales)
 // Prérequis manuel : system/meta → { usersCount: 0, maxUsers: 5 }
 // Déployer : Firebase Console → Firestore → Règles → Publier
 

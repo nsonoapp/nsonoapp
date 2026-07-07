@@ -17,10 +17,14 @@ import {
   completeLogin,
   ensureFirestoreUser,
   waitForAuthReady,
-  authErrorMessage
+  authErrorMessage,
+  validateCompanyAccess,
+  assertUserCompanyMatch,
+  isUserApproved
 } from "./auth-flow.js";
 
 import { initPasswordToggles } from "./password-toggle.js";
+import { bindFormAction, bindActionButton } from "./utils/buttonManager.js";
 
 const auth = getAuth();
 const googleProvider = new GoogleAuthProvider();
@@ -28,12 +32,37 @@ const googleProvider = new GoogleAuthProvider();
 const loginForm = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
+const companyNameInput = document.getElementById("companyName");
 const rememberMeCheckbox = document.getElementById("rememberMe");
 const googleLoginBtn = document.getElementById("googleLoginBtn");
 
 initPasswordToggles();
 
-async function redirectAfterLogin(userData, action) {
+async function resolveCompanyGate() {
+  const companyAccess = await validateCompanyAccess(
+    companyNameInput?.value.trim()
+  );
+
+  if (!companyAccess.ok) {
+    throw new Error(companyAccess.error || "company_credentials_required");
+  }
+
+  return companyAccess.company;
+}
+
+async function redirectAfterLogin(userData, action, company = null) {
+  if (userData?.approvalStatus === "rejected") {
+    await signOut(auth);
+    alert(authErrorMessage({ message: "approval_rejected" }));
+    return;
+  }
+
+  if (!isUserApproved(userData)) {
+    await signOut(auth);
+    alert(authErrorMessage({ message: "approval_pending" }));
+    return;
+  }
+
   if (!userData?.isActive) {
     await signOut(auth);
     alert("Compte désactivé");
@@ -46,13 +75,17 @@ async function redirectAfterLogin(userData, action) {
     return;
   }
 
-  await completeLogin(userData.userId || userData.id, userData.role, action);
+  if (!assertUserCompanyMatch(userData, company)) {
+    await signOut(auth);
+    alert(authErrorMessage({ message: "company_mismatch" }));
+    return;
+  }
+
+  await completeLogin(userData.userId || userData.id, userData.role, action, userData, company);
   window.location.replace("index.html");
 }
 
-loginForm?.addEventListener("submit", async e => {
-  e.preventDefault();
-
+bindFormAction(loginForm, async () => {
   const email = emailInput?.value.trim().toLowerCase() || "";
   const password = passwordInput?.value || "";
 
@@ -83,7 +116,8 @@ loginForm?.addEventListener("submit", async e => {
       return;
     }
 
-    await redirectAfterLogin(userData, "login");
+    const company = await resolveCompanyGate();
+    await redirectAfterLogin(userData, "login", company);
   } catch (err) {
     console.error("[login] erreur:", err?.code || err?.message, err);
     alert(authErrorMessage(err, "Erreur de connexion"));
@@ -107,11 +141,12 @@ async function handleGoogleLogin() {
       userData = await ensureFirestoreUser(result.user, { isActive: true });
     }
 
-    await redirectAfterLogin(userData, "google_login");
+    const company = await resolveCompanyGate();
+    await redirectAfterLogin(userData, "google_login", company);
   } catch (err) {
     console.error("[login] Google erreur:", err?.code || err?.message, err);
     alert(authErrorMessage(err, "Erreur connexion Google"));
   }
 }
 
-googleLoginBtn?.addEventListener("click", handleGoogleLogin);
+bindActionButton(googleLoginBtn, handleGoogleLogin);

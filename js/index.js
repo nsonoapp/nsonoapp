@@ -2,6 +2,7 @@
 import { 
   db, collection, addDoc, setDoc, getDoc, doc, updateDoc, Timestamp, getDocs, query, where, enableIndexedDbPersistence, runTransaction, serverTimestamp, writeLog
 } from './firebase.js';
+import { withEntityScope } from "./nsono-scope.js";
  
 import {
   registerServiceWorker,
@@ -25,8 +26,20 @@ import {
   getSellableQty
 } from "./expiration.js";
 
+import { assertWritable, isAppLocked, runGuardedTransaction } from "./services/firebaseService.js";
+import { bindActionButton } from "./utils/buttonManager.js";
 import { getAuth, onAuthStateChanged } from "./auth.js";
 import { generateReceipt } from "./receipt.js";
+
+function syncIndexLockBadge() {
+  const badge = document.getElementById("indexLockBadge");
+  if (badge) {
+    badge.classList.toggle("hidden", !isAppLocked());
+  }
+}
+
+syncIndexLockBadge();
+window.addEventListener("nsono:lock-changed", syncIndexLockBadge);
 
 
 // --- DOM ---
@@ -111,8 +124,6 @@ togglePaymentInput();
 // --- STATE ---
 let cart = [];
 let allProducts = [];
-let isProcessingSale = false;   // 🔒 LOCK PRINCIPAL
-let lastSaleTime = 0;           // 🔒 ANTI SPAM
 let expirationFeatureEnabled = false;
 let expirationAlertDays = 30;
 let movementsByProduct = {};
@@ -206,6 +217,7 @@ async function loadProducts() {
   snap.forEach(docSnap => {
     const p = docSnap.data();
     if (!p?.isActive) return;
+    if (p.stockType === "tools") return;
 
     const price_min = p.price_min ?? p.price_sell ?? p.price_buy ?? 0;
 
@@ -767,7 +779,7 @@ async function processSaleOnline(data) {
   // =========================
   // 1. STOCK (SEULE PARTIE CRITIQUE)
   // =========================
-  await runTransaction(db, async (tx) => {
+  await runGuardedTransaction(async (tx) => {
 
   const productSnapshots = [];
 
@@ -810,7 +822,7 @@ async function processSaleOnline(data) {
     });
   }
 
-  tx.set(saleRef, {
+  tx.set(saleRef, withEntityScope({
   sellerId: finalSellerId,
   clientName: name,
   total_amount: totalAmount,
@@ -821,7 +833,7 @@ async function processSaleOnline(data) {
   status: "active",
   ...payment,
   createdAt: Timestamp.fromMillis(saleDate)
-});
+}));
 
 });
 
@@ -835,7 +847,7 @@ async function processSaleOnline(data) {
 
     if (!useFifo) {
       const itemRef = doc(collection(db, "sale_items"));
-      itemsBatch.push(setDoc(itemRef, {
+      itemsBatch.push(setDoc(itemRef, withEntityScope({
         saleId: saleRef.id,
         productId: item.productId,
         quantity: item.qty,
@@ -843,10 +855,10 @@ async function processSaleOnline(data) {
         price_min: item.price_min,
         profit: (item.price - item.price_buy) * item.qty,
         createdAt: Timestamp.fromMillis(saleDate)
-      }));
+      })));
 
       const moveRef = doc(collection(db, "stock_movements"));
-      movementsBatch.push(setDoc(moveRef, {
+      movementsBatch.push(setDoc(moveRef, withEntityScope({
         productId: item.productId,
         type: "OUT",
         quantity: item.qty,
@@ -854,7 +866,7 @@ async function processSaleOnline(data) {
         referenceId: saleRef.id,
         createdBy: finalSellerId,
         createdAt: Timestamp.fromMillis(saleDate)
-      }));
+      })));
 
       continue;
     }
@@ -882,7 +894,7 @@ async function processSaleOnline(data) {
         itemPayload.expirationDate = allocation.expirationDate;
       }
 
-      itemsBatch.push(setDoc(itemRef, itemPayload));
+      itemsBatch.push(setDoc(itemRef, withEntityScope(itemPayload)));
 
       const moveRef = doc(collection(db, "stock_movements"));
       const movePayload = {
@@ -903,7 +915,7 @@ async function processSaleOnline(data) {
         movePayload.batchId = allocation.batchId;
       }
 
-      movementsBatch.push(setDoc(moveRef, movePayload));
+      movementsBatch.push(setDoc(moveRef, withEntityScope(movePayload)));
     }
 
     productsToRefresh.add(item.productId);
@@ -934,7 +946,7 @@ async function processSaleOnline(data) {
 
     const debtRef = doc(collection(db, "debts"));
 
-    await setDoc(debtRef, {
+    await setDoc(debtRef, withEntityScope({
       category: "debt",
       reason: "debt",
       name: name,
@@ -949,7 +961,7 @@ async function processSaleOnline(data) {
       createdAt: Timestamp.fromMillis(saleDate),
       updatedAt: Timestamp.fromMillis(saleDate),
       createdBy: finalSellerId
-    });
+    }));
   }
 
   await writeLog({
@@ -973,20 +985,13 @@ async function processSaleOnline(data) {
 }
 
 // --- SELL (ANTI DOUBLE) ---
-sellBtn.addEventListener('click', async () => {
-
-  if (isProcessingSale) return;
-
-  const nowTime = Date.now();
-  if (nowTime - lastSaleTime < 1500) return;
-  lastSaleTime = nowTime;
+bindActionButton(sellBtn, async () => {
 
   if (!cart.length) return;
 
-  isProcessingSale = true;
-  sellBtn.disabled = true;
-
   try {
+
+    assertWritable();
 
     await checkUser(currentUserId);
 
@@ -1110,12 +1115,13 @@ sellBtn.addEventListener('click', async () => {
     showSyncToast("📦 Vente ok", "warning");
 
   } catch (e) {
-    alert(e.message);
-  } finally {
-    isProcessingSale = false;
-    sellBtn.disabled = false;
+    if (e?.code === "app_locked" || e?.message === "app_locked") {
+      alert("Action bloquée sur cet appareil (mode verrouillé).");
+    } else {
+      alert(e.message);
+    }
   }
-});
+}, { guard: () => cart.length > 0 });
 
 // --- INIT ---
 onAuthStateChanged(auth, async (user) => {

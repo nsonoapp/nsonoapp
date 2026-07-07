@@ -37,14 +37,39 @@ service cloud.firestore {
         && validRole(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role);
     }
 
+    function companyExists() {
+      return exists(/databases/$(database)/documents/companies/main);
+    }
+
+    function validCompanyLink() {
+      return !request.resource.data.keys().hasAny(['companyId'])
+        || request.resource.data.companyId == null
+        || (
+          request.resource.data.companyId == 'main'
+          && companyExists()
+        );
+    }
+
+    function userBelongsToCompany() {
+      return !resource.data.keys().hasAny(['companyId'])
+        || resource.data.companyId == null
+        || !request.resource.data.keys().hasAny(['companyId'])
+        || request.resource.data.companyId == resource.data.companyId;
+    }
+
+    function isMasterOfCompany(companyId) {
+      return companyId == 'main'
+        && companyExists()
+        && get(/databases/$(database)/documents/companies/main).data.masterAdminId == request.auth.uid;
+    }
+
     function validUserCreate() {
       return request.resource.data.userId == request.auth.uid
         && request.resource.data.keys().hasAll(['userId', 'name', 'role', 'isActive', 'createdAt'])
         && validRole(request.resource.data.role)
-        && request.resource.data.isActive is bool;
+        && request.resource.data.isActive is bool
+        && validCompanyLink();
     }
-
-    // ── Compteur users (max 5) ─────────────────────────────────
     // Créer une fois dans la console :
     // system/meta → { usersCount: 0, maxUsers: 5 }
     match /system/meta {
@@ -77,7 +102,8 @@ service cloud.firestore {
 
       allow update: if signedIn() && (
         (request.auth.uid == userId
-          && request.resource.data.role == resource.data.role)
+          && request.resource.data.role == resource.data.role
+          && userBelongsToCompany())
         || isAdmin()
       );
 
@@ -147,6 +173,65 @@ service cloud.firestore {
 
     match /batch_movements/{id} {
       allow read, write: if signedIn();
+    }
+
+    // ── NSONO — une seule société par base (companies/main) ────
+    match /companies/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && id == 'main'
+        && !companyExists();
+      allow update: if id == 'main' && (
+        isAdmin()
+        || resource.data.masterAdminId == request.auth.uid
+      );
+      allow delete: if false;
+    }
+
+    match /entities/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && companyExists()
+        && request.resource.data.companyId == 'main';
+      allow update, delete: if isAdmin()
+        && resource.data.companyId == 'main';
+    }
+
+    match /roles/{id} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.resource.data.companyId == 'main';
+      allow update: if isAdmin()
+        && resource.data.companyId == 'main'
+        && request.resource.data.companyId == 'main';
+      allow delete: if isAdmin()
+        && resource.data.companyId == 'main';
+    }
+
+    // ── Secret société — jamais lisible côté client ────────────
+    match /company_secrets/{companyId} {
+      allow read: if false;
+      allow create: if signedIn()
+        && companyId == 'main'
+        && request.resource.data.companyId == 'main'
+        && request.resource.data.keys().hasAll(['companyId', 'passwordHash', 'updatedAt'])
+        && !exists(/databases/$(database)/documents/company_secrets/main);
+      allow update: if companyId == 'main' && (isAdmin() || isMasterOfCompany('main'));
+      allow delete: if false;
+    }
+
+    // ── Sonde auth — compare hash sans exposer company_secrets ─
+    match /company_auth_probes/{probeId} {
+      allow read: if false;
+      allow create: if signedIn()
+        && request.resource.data.companyId == 'main'
+        && request.resource.data.passwordHash is string
+        && request.resource.data.uid == request.auth.uid
+        && exists(/databases/$(database)/documents/company_secrets/main)
+        && get(/databases/$(database)/documents/company_secrets/main).data.passwordHash
+           == request.resource.data.passwordHash;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
     }
   }
 }

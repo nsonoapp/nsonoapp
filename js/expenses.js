@@ -9,6 +9,7 @@ import {
 } from "./firebase.js";
 import { getAuth, onAuthStateChanged } from "./auth.js";
 import { COLLECTIONS } from "./finance/collections.js";
+import { bindActionButton } from "./utils/buttonManager.js";
 import { loadFinanceByCollection, dateRangeFromInputs } from "./finance/data.js";
 import {
   debug,
@@ -26,6 +27,7 @@ import {
 } from "./finance/notifications.js";
 import { showToast } from "./finance/toast.js";
 import { injectOptions } from "./filter.js";
+import { withEntityScope } from "./nsono-scope.js";
 
 const auth = getAuth();
 let currentUserId = null;
@@ -198,7 +200,7 @@ async function submitExpenseEdit() {
   }
 }
 
-document.getElementById("addExpenseBtn")?.addEventListener("click", async () => {
+bindActionButton(document.getElementById("addExpenseBtn"), async () => {
   const label = document.getElementById("label")?.value.trim();
   const category = document.getElementById("category")?.value;
   const amount = Number(document.getElementById("amount")?.value);
@@ -219,7 +221,7 @@ document.getElementById("addExpenseBtn")?.addEventListener("click", async () => 
   try {
     console.log("[expenses] addDoc", { label, amount, category });
 
-    await addDoc(collection(db, COLLECTIONS.expenses), {
+    await addDoc(collection(db, COLLECTIONS.expenses), withEntityScope({
       reason: label,
       category,
       amount,
@@ -229,7 +231,7 @@ document.getElementById("addExpenseBtn")?.addEventListener("click", async () => 
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       createdBy: currentUserId
-    });
+    }));
 
     await writeLog({
       userId: currentUserId,
@@ -247,11 +249,11 @@ document.getElementById("addExpenseBtn")?.addEventListener("click", async () => 
   }
 });
 
-document.getElementById("applyFirebaseFilter")?.addEventListener("click", () => {
-  loadData(true);
+bindActionButton(document.getElementById("applyFirebaseFilter"), async () => {
+  await loadData(true);
 });
 
-document.getElementById("expenseEditSaveBtn")?.addEventListener("click", submitExpenseEdit);
+bindActionButton(document.getElementById("expenseEditSaveBtn"), submitExpenseEdit);
 document.getElementById("expenseEditCancelBtn")?.addEventListener("click", () => {
   closeActionModal(expenseEditModal, document.getElementById("expenseEditError"));
 });

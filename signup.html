@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StockFlow - Signup</title>
+  <title>NSONO - Signup</title>
 
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: Arial, sans-serif; }
@@ -131,12 +131,19 @@
       color: #0B3D2E;
       text-decoration: none;
     }
+
+    .hint {
+      font-size: 11px;
+      color: #666;
+      margin: 4px 0 10px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <h3>StockFlow — Inscription</h3>
+    <h3>NSONO — Inscription</h3>
   </header>
 
   <main>
@@ -160,6 +167,13 @@
           <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Afficher le mot de passe"></button>
         </div>
       </div>
+
+      <div class="field-group">
+        <label for="companyName">Nom de la société</label>
+        <input type="text" id="companyName" placeholder="Nom ou code société" maxlength="80" autocomplete="organization">
+      </div>
+
+      <p class="hint">Requis si une société NSONO est configurée. Votre compte sera validé par un administrateur.</p>
 
       <div class="checkbox-group">
         <input type="checkbox" id="isActive" checked>

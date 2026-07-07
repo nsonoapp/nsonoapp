@@ -8,6 +8,7 @@ import {
 } from "../firebase.js";
 import { COLLECTIONS } from "./collections.js";
 import { getDebtDueInfo, n, STALE_DEBT_DAYS } from "./shared.js";
+import { bindActionButton } from "../utils/buttonManager.js";
 
 const LOSS_ALERT_MIN = 10000;
 const notifiedDebtKeys = new Set();
@@ -40,7 +41,7 @@ export async function requestActivityNotificationPermission() {
   return Notification.requestPermission();
 }
 
-export async function pushActivityNotification(title, body, tag = "stockflow-activity") {
+export async function pushActivityNotification(title, body, tag = "NSONO-activity") {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   if (!isAppInBackground()) return;
@@ -247,7 +248,7 @@ export function mountNotificationPermissionBanner(containerId = "notificationBan
   btn.textContent = "Autoriser les Notifications";
   btn.style.marginTop = "0";
 
-  btn.addEventListener("click", async () => {
+  bindActionButton(btn, async () => {
     const result = await requestActivityNotificationPermission();
 
     if (result === "granted") {

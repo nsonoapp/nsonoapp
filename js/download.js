@@ -1,5 +1,6 @@
 // download.js v2
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
+import { bindActionButton } from "./utils/buttonManager.js";
 
 let provider = null;
 
@@ -85,7 +86,7 @@ function build(){
 export function exportStatsPdf() {
 
   const data = build();
-  if (!data) return;
+  if (!data) return Promise.resolve();
 
   const doc = new jsPDF();
   let y = 18;
@@ -140,12 +141,12 @@ export function exportStatsPdf() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
 
-    doc.text("StockFlow • Business Report", 38, 14);
+    doc.text("NSONO • Business Report", 38, 14);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
 
-    doc.text(`Shop: ${data.meta.shopName || "StockFlow"}`, 38, 20);
+    doc.text(`Shop: ${data.meta.shopName || "NSONO"}`, 38, 20);
     doc.text(`Currency: ${currency}`, 38, 25);
     doc.text(`Generated: ${new Date(data.meta.generatedAt).toLocaleString()}`, 38, 30);
 
@@ -193,7 +194,7 @@ export function exportStatsPdf() {
 
   /* ================= BUILD ================= */
 
-  (async () => {
+  return (async () => {
 
     await drawHeader(true);
 
@@ -270,7 +271,7 @@ export function exportStatsPdf() {
     /* FOOTER */
     doc.setFontSize(9);
     doc.setFont("helvetica", "italic");
-    const footerName = data.meta.shopName || "StockFlow";
+    const footerName = data.meta.shopName || "NSONO";
 
     doc.text(`${footerName} • Confidential Business Report`, 15, 290);
 
@@ -285,5 +286,5 @@ export function initPdfExportButton() {
   const btn = document.getElementById("pdfBtn");
   if (!btn) return;
 
-  btn.addEventListener("click", exportStatsPdf);
+  bindActionButton(btn, exportStatsPdf);
 }

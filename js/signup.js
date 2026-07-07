@@ -22,10 +22,14 @@ import {
   completeLogin,
   isAllowedRole,
   waitForAuthReady,
-  authErrorMessage
+  authErrorMessage,
+  validateCompanyAccess,
+  assertUserCompanyMatch,
+  isUserApproved
 } from "./auth-flow.js";
 
 import { initPasswordToggles } from "./password-toggle.js";
+import { bindFormAction, bindActionButton } from "./utils/buttonManager.js";
 
 const auth = getAuth();
 const signupForm = document.getElementById("signupForm");
@@ -34,13 +38,12 @@ const googleProvider = new GoogleAuthProvider();
 
 initPasswordToggles();
 
-signupForm?.addEventListener("submit", async e => {
-  e.preventDefault();
-
+bindFormAction(signupForm, async () => {
   const fullName = document.getElementById("fullName")?.value.trim();
   const email = document.getElementById("email")?.value.trim().toLowerCase();
   const password = document.getElementById("password")?.value;
   const isActive = document.getElementById("isActive")?.checked ?? true;
+  const companyName = document.getElementById("companyName")?.value.trim();
 
   if (!fullName || !email || !password) {
     alert("Remplis tous les champs");
@@ -66,6 +69,20 @@ signupForm?.addEventListener("submit", async e => {
       throw new Error("user_limit");
     }
 
+    const companyAccess = await validateCompanyAccess(companyName);
+    if (!companyAccess.ok) {
+      await signOut(auth);
+      throw new Error(companyAccess.error || "company_credentials_required");
+    }
+
+    const nsonoFields = {};
+    if (companyAccess.company) {
+      nsonoFields.companyId = companyAccess.company.id;
+      nsonoFields.entityId = null;
+      nsonoFields.approvalStatus = "pending";
+      nsonoFields.roleIds = [];
+    }
+
     const batch = writeBatch(db);
 
     console.log("[signup] batch.set users/", uid);
@@ -74,8 +91,10 @@ signupForm?.addEventListener("submit", async e => {
       name: fullName,
       email,
       role: "seller",
-      isActive,
-      createdAt: Timestamp.now()
+      isActive: companyAccess.company ? false : isActive,
+      roleIds: [],
+      createdAt: Timestamp.now(),
+      ...nsonoFields
     });
 
     console.log("[signup] batch.update system/meta usersCount:", usersCount + 1);
@@ -89,11 +108,20 @@ signupForm?.addEventListener("submit", async e => {
     await writeLog({
       userId: uid,
       action: "signup",
-      details: { email, role: "seller" }
+      details: {
+        email,
+        role: "seller",
+        companyId: nsonoFields.companyId || null,
+        approvalStatus: nsonoFields.approvalStatus || null
+      }
     });
 
     await signOut(auth);
-    alert("Compte créé ! Connectez-vous.");
+    if (nsonoFields.approvalStatus === "pending") {
+      alert("Compte créé ! En attente d'approbation par un administrateur.");
+    } else {
+      alert("Compte créé ! Connectez-vous.");
+    }
     window.location.replace("login.html");
   } catch (err) {
     console.error("[signup] erreur:", err?.code || err?.message, err);
@@ -101,9 +129,16 @@ signupForm?.addEventListener("submit", async e => {
   }
 });
 
-googleSignupBtn?.addEventListener("click", async () => {
+bindActionButton(googleSignupBtn, async () => {
   try {
     await setPersistence(auth, browserLocalPersistence);
+
+    const companyAccess = await validateCompanyAccess(
+      document.getElementById("companyName")?.value.trim()
+    );
+    if (!companyAccess.ok) {
+      throw new Error(companyAccess.error || "company_credentials_required");
+    }
 
     console.log("[signup] signInWithPopup Google");
     const result = await signInWithPopup(auth, googleProvider);
@@ -111,7 +146,24 @@ googleSignupBtn?.addEventListener("click", async () => {
     console.log("[signup] Google OK, uid:", result.user.uid);
 
     const isActive = document.getElementById("isActive")?.checked ?? true;
-    const userData = await ensureFirestoreUser(result.user, { isActive });
+    const userData = await ensureFirestoreUser(result.user, {
+      isActive,
+      companyId: companyAccess.company?.id || null,
+      entityId: null,
+      approvalStatus: companyAccess.company ? "pending" : "approved"
+    });
+
+    if (userData?.approvalStatus === "rejected") {
+      await signOut(auth);
+      alert(authErrorMessage({ message: "approval_rejected" }));
+      return;
+    }
+
+    if (!isUserApproved(userData)) {
+      await signOut(auth);
+      alert(authErrorMessage({ message: "approval_pending" }));
+      return;
+    }
 
     if (!userData?.isActive) {
       await signOut(auth);
@@ -125,7 +177,19 @@ googleSignupBtn?.addEventListener("click", async () => {
       return;
     }
 
-    await completeLogin(userData.userId || userData.id, userData.role, "google_signup");
+    if (!assertUserCompanyMatch(userData, companyAccess.company)) {
+      await signOut(auth);
+      alert(authErrorMessage({ message: "company_mismatch" }));
+      return;
+    }
+
+    await completeLogin(
+      userData.userId || userData.id,
+      userData.role,
+      "google_signup",
+      userData,
+      companyAccess.company
+    );
     window.location.replace("index.html");
   } catch (err) {
     console.error("[signup] Google erreur:", err?.code || err?.message, err);

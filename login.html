@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StockFlow - Login</title>
+  <title>NSONO - Login</title>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
@@ -123,6 +123,13 @@
     .signup-link:hover {
       text-decoration: underline;
     }
+
+    .hint {
+      font-size: 11px;
+      color: #666;
+      margin: -5px 0 12px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -142,6 +149,13 @@
           <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Afficher le mot de passe"></button>
         </div>
       </div>
+
+      <div class="field-group">
+        <label for="companyName">Nom de la société</label>
+        <input type="text" id="companyName" placeholder="Nom ou code société" maxlength="80" autocomplete="organization">
+      </div>
+
+      <p class="hint">Requis si votre organisation utilise NSONO multi-entités. Le mot de passe société n'est jamais saisi ici (vérification serveur à venir).</p>
 
       <div class="checkbox-group">
         <input type="checkbox" id="rememberMe">

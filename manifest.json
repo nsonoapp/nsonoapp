@@ -1,6 +1,6 @@
 {
-  "name": "StockFlow",
-  "short_name": "StockFlow",
+  "name": "NSONO",
+  "short_name": "NSONO",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

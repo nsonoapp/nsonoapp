@@ -32,6 +32,8 @@ import {
   mountNotificationPermissionBanner
 } from "./finance/notifications.js";
 import { showToast } from "./finance/toast.js";
+import { withEntityScope } from "./nsono-scope.js";
+import { bindActionButton } from "./utils/buttonManager.js";
 import { injectOptions } from "./filter.js";
 
 const auth = getAuth();
@@ -311,7 +313,7 @@ async function submitDebtPayment() {
   }
 }
 
-document.getElementById("addDebtBtn")?.addEventListener("click", async () => {
+bindActionButton(document.getElementById("addDebtBtn"), async () => {
   const type = document.getElementById("debtType")?.value;
   const name = document.getElementById("debtName")?.value.trim();
   const totalRaw = document.getElementById("debtAmount")?.value;
@@ -365,7 +367,7 @@ document.getElementById("addDebtBtn")?.addEventListener("click", async () => {
 
     console.log("[debts] addDoc", { name, total, remaining });
 
-    await addDoc(collection(db, COLLECTIONS.debts), {
+    await addDoc(collection(db, COLLECTIONS.debts), withEntityScope({
       reason: `${type} debt`,
       name,
       category: type,
@@ -380,7 +382,7 @@ document.getElementById("addDebtBtn")?.addEventListener("click", async () => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       createdBy: currentUserId
-    });
+    }));
 
     await writeLog({
       userId: currentUserId,
@@ -407,8 +409,8 @@ document.getElementById("addDebtBtn")?.addEventListener("click", async () => {
   }
 });
 
-document.getElementById("applyFirebaseFilter")?.addEventListener("click", () => loadData(true));
-document.getElementById("debtPaymentSaveBtn")?.addEventListener("click", submitDebtPayment);
+bindActionButton(document.getElementById("applyFirebaseFilter"), async () => loadData(true));
+bindActionButton(document.getElementById("debtPaymentSaveBtn"), submitDebtPayment);
 document.getElementById("debtPaymentCancelBtn")?.addEventListener("click", () => {
   closeActionModal(debtPaymentModal, document.getElementById("debtPaymentError"));
 });

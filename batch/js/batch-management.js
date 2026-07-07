@@ -21,6 +21,7 @@ import {
   formatDate,
   statusBadge
 } from "./batch-utils.js";
+import { bindActionButton } from "../../js/utils/buttonManager.js";
 
 const auth = getAuth();
 let currentUserId = null;
@@ -142,19 +143,19 @@ function renderProducts() {
     editBtn.type = "button";
     editBtn.className = "btn btn-accent btn-sm";
     editBtn.textContent = "Modifier";
-    editBtn.addEventListener("click", () => openEditProductModal(product));
+    bindActionButton(editBtn, () => openEditProductModal(product));
 
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
     toggleBtn.className = "btn btn-warning btn-sm";
     toggleBtn.textContent = product.isActive === false ? "Activer" : "Désactiver";
-    toggleBtn.addEventListener("click", () => handleToggleProduct(product));
+    bindActionButton(toggleBtn, () => handleToggleProduct(product));
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "btn btn-danger btn-sm";
     deleteBtn.textContent = "Supprimer";
-    deleteBtn.addEventListener("click", () => handleDeleteProduct(product));
+    bindActionButton(deleteBtn, () => handleDeleteProduct(product));
 
     actions.append(editBtn, toggleBtn, deleteBtn);
     row.append(info, actions);
@@ -210,7 +211,7 @@ function renderBatches() {
       editBtn.type = "button";
       editBtn.className = "btn btn-accent btn-sm";
       editBtn.textContent = "Modifier";
-      editBtn.addEventListener("click", () => openEditBatchModal(batch));
+      bindActionButton(editBtn, () => openEditBatchModal(batch));
       actions.appendChild(editBtn);
     }
 
@@ -219,7 +220,7 @@ function renderBatches() {
       disableBtn.type = "button";
       disableBtn.className = "btn btn-warning btn-sm";
       disableBtn.textContent = "Désactiver";
-      disableBtn.addEventListener("click", () => handleCancelBatch(batch));
+      bindActionButton(disableBtn, () => handleCancelBatch(batch));
       actions.appendChild(disableBtn);
     }
 
@@ -227,7 +228,7 @@ function renderBatches() {
     deleteBtn.type = "button";
     deleteBtn.className = "btn btn-danger btn-sm";
     deleteBtn.textContent = "Supprimer";
-    deleteBtn.addEventListener("click", () => handleDeleteBatch(batch));
+    bindActionButton(deleteBtn, () => handleDeleteBatch(batch));
     actions.appendChild(deleteBtn);
 
     row.append(info, actions);
@@ -420,17 +421,17 @@ async function handleRecordSale() {
 }
 
 function bindEvents() {
-  document.getElementById("createProductBtn")?.addEventListener("click", handleCreateProduct);
-  document.getElementById("createBatchBtn")?.addEventListener("click", handleCreateBatch);
-  document.getElementById("recordSaleBtn")?.addEventListener("click", handleRecordSale);
+  bindActionButton(document.getElementById("createProductBtn"), handleCreateProduct);
+  bindActionButton(document.getElementById("createBatchBtn"), handleCreateBatch);
+  bindActionButton(document.getElementById("recordSaleBtn"), handleRecordSale);
 
-  document.getElementById("editProductSaveBtn")?.addEventListener("click", handleSaveProductEdit);
+  bindActionButton(document.getElementById("editProductSaveBtn"), handleSaveProductEdit);
   document.getElementById("editProductCancelBtn")?.addEventListener("click", () => {
     closeModal("editProductModal");
     editingProductId = null;
   });
 
-  document.getElementById("editBatchSaveBtn")?.addEventListener("click", handleSaveBatchEdit);
+  bindActionButton(document.getElementById("editBatchSaveBtn"), handleSaveBatchEdit);
   document.getElementById("editBatchCancelBtn")?.addEventListener("click", () => {
     closeModal("editBatchModal");
     editingBatchId = null;

@@ -1,8 +1,11 @@
 // products.js v3 - VERSION FINALE ULTIME PRO + search   + vrai OFFLINE 
 import { 
-  db, collection, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Timestamp, writeLog
+  db, collection, getDocs, doc, getDoc, Timestamp, writeLog, query
 } from './firebase.js';
+import { addData, updateData, deleteData, handleWriteError } from './services/firebaseService.js';
 import { getAuth, onAuthStateChanged } from "./auth.js";
+import { applyEntityScope } from "./nsono-scope.js";
+import { bindActionButton } from "./utils/buttonManager.js";
 
 // --- OFFLINE ---
 import {
@@ -208,6 +211,11 @@ function openProductModal(mode, data = null) {
   document.getElementById("productPriceMin").value =
     data?.price_min ?? data?.price_sell ?? "";
 
+  const stockTypeSelect = document.getElementById("productStockType");
+  if (stockTypeSelect) {
+    stockTypeSelect.value = data?.stockType === "tools" ? "tools" : "sales";
+  }
+
   const stockInput = document.getElementById("productStockInitial");
   if (stockInput) {
     stockInput.value = data?.stock_current ?? "";
@@ -298,6 +306,9 @@ function readProductForm() {
     }
   }
 
+  const stockTypeRaw = document.getElementById("productStockType")?.value || "sales";
+  const stockType = stockTypeRaw === "tools" ? "tools" : "sales";
+
   return {
     name: sanitizeText(
       document.getElementById("productName")?.value || ""
@@ -328,6 +339,8 @@ function readProductForm() {
       document.getElementById("productExpirationDate")?.value || "",
     purchaseType:
       document.querySelector('input[name="purchaseType"]:checked')?.value || ""
+    ,
+    stockType
   };
 }
 
@@ -445,7 +458,7 @@ async function saveProductFromModal() {
 
     const now = Timestamp.now();
 
-    await updateDoc(doc(db, "products", editingProductId), {
+    await updateData(doc(db, "products", editingProductId), {
       name: data.name,
       variant: data.variant,
       imageUrl: data.imageUrl,
@@ -454,6 +467,7 @@ async function saveProductFromModal() {
       minOfflineStock: data.minOfflineStock,
       price_sell: data.price_sell,
       price_min: data.price_min,
+      stockType: data.stockType || "sales",
       hasExpiration: expirationFeatureEnabled ? !!data.hasExpiration : false,
       updatedAt: now
     });
@@ -472,6 +486,7 @@ async function saveProductFromModal() {
     await loadProducts();
     closeProductModal();
   } catch (err) {
+    if (handleWriteError(err)) return;
     console.error(err);
     const message = err?.message || "Erreur produit";
     setProductModalError(message);
@@ -520,6 +535,7 @@ async function processProductCreateOnline(data) {
     offlineBlocked,
     minOfflineStock,
     stock_alert: 10,
+    stockType: data.stockType === "tools" ? "tools" : "sales",
     isActive: true,
     hasExpiration: productHasExpiration,
     expirationDate: expirationTimestamp,
@@ -527,10 +543,7 @@ async function processProductCreateOnline(data) {
     updatedAt: now
   };
 
-  const prodRef = await addDoc(
-    collection(db, "products"),
-    productPayload
-  );
+  const prodRef = await addData("products", productPayload);
 
   const movementPayload = {
     productId: prodRef.id,
@@ -547,10 +560,7 @@ async function processProductCreateOnline(data) {
     movementPayload.batchId = buildBatchId();
   }
 
-  await addDoc(
-    collection(db, "stock_movements"),
-    movementPayload
-  );
+  await addData("stock_movements", movementPayload);
 
   await writeLog({
     userId: createdBy,
@@ -570,7 +580,7 @@ async function processProductCreateOnline(data) {
   const expenseCategory = PURCHASE_TYPE_TO_CATEGORY[purchaseType];
 
   if (fundingAmount > 0 && expenseCategory) {
-    await addDoc(collection(db, "expenses"), {
+    await addData("expenses", {
       reason: `${purchaseType} — ${productLabel}`,
       category: expenseCategory,
       amount: fundingAmount,
@@ -622,7 +632,17 @@ function renderProducts(products) {
 
     // NAME
     const tdName = document.createElement("td");
-    tdName.textContent = p.name || "-";
+    const nameWrap = document.createElement("div");
+    nameWrap.textContent = p.name || "-";
+    if (p.stockType === "tools") {
+      const badge = document.createElement("span");
+      badge.textContent = " Outil";
+      badge.style.fontSize = "11px";
+      badge.style.color = "#0B3D2E";
+      badge.style.fontWeight = "700";
+      nameWrap.appendChild(badge);
+    }
+    tdName.appendChild(nameWrap);
 
     // VARIANT
     const tdVariant = document.createElement("td");
@@ -678,9 +698,7 @@ tdState.className = p.isActive
 deleteBtn.className = "btn btn-delete";
 deleteBtn.textContent = "Supprimer";
 
-deleteBtn.addEventListener("click", () => {
-  deleteProduct(p.id, p.name);
-});
+    bindActionButton(deleteBtn, () => deleteProduct(p.id, p.name));
     
     if (p.isActive) {
   activateBtn.className = "btn btn-add";
@@ -694,9 +712,9 @@ deleteBtn.addEventListener("click", () => {
       openProductModal("edit", p);
     });
 
-    activateBtn.addEventListener("click", () => {
-  toggleProductStatus(p.id, p.name, p.isActive);
-});
+    bindActionButton(activateBtn, () => {
+      toggleProductStatus(p.id, p.name, p.isActive);
+    });
 
     tdActions.append(editBtn, activateBtn, deleteBtn);
 
@@ -737,8 +755,8 @@ if (searchInput) {
 // --- LOAD PRODUCTS ---
 async function loadProducts() {
   const prodSnap = await getDocs(
-  collection(db, "products")
-);
+    query(collection(db, "products"), ...applyEntityScope([]))
+  );
 
 if (prodSnap.metadata.fromCache) {
   debug("Produits chargés depuis cache offline");
@@ -762,7 +780,7 @@ addBtn.addEventListener("click", () => {
   openProductModal("add");
 });
 
-document.getElementById("productSaveBtn")?.addEventListener("click", () => {
+bindActionButton(document.getElementById("productSaveBtn"), () => {
   saveProductFromModal();
 });
 
@@ -806,7 +824,7 @@ async function toggleProductStatus(id, name, currentState) {
 
   const now = Timestamp.now();
 
-  await updateDoc(doc(db, "products", id), {
+  await updateData(doc(db, "products", id), {
     isActive: !currentState,
     updatedAt: now
   });
@@ -855,7 +873,7 @@ async function deleteProduct(id, name) {
   }
 
   try {
-    await deleteDoc(doc(db, "products", id));
+    await deleteData(doc(db, "products", id));
 
     await writeLog({
       userId: currentUserId,

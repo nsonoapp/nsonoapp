@@ -38,6 +38,8 @@ import {
   isAppInBackground
 } from "./finance/notifications.js";
 import { showToast } from "./finance/toast.js";
+import { bindActionButton } from "./utils/buttonManager.js";
+import { withEntityScope } from "./nsono-scope.js";
 
 const auth = getAuth();
 let currentUserId = null;
@@ -83,11 +85,11 @@ async function loadProductMovements(productId) {
 }
 
 async function addStockMovement(payload) {
-  await addDoc(collection(db, "stock_movements"), {
+  await addDoc(collection(db, "stock_movements"), withEntityScope({
     ...payload,
     createdBy: currentUserId,
     createdAt: Timestamp.now()
-  });
+  }));
 }
 
 function getFiltered() {
@@ -275,7 +277,7 @@ async function submitLossCorrection() {
       );
     }
 
-    await addDoc(collection(db, COLLECTIONS.losses), {
+    await addDoc(collection(db, COLLECTIONS.losses), withEntityScope({
       reason: "correction",
       category: "product_loss_correction",
       isSystemCorrection: true,
@@ -284,7 +286,7 @@ async function submitLossCorrection() {
       relatedLossId: id,
       createdAt: Timestamp.now(),
       createdBy: currentUserId
-    });
+    }));
 
     await updateDoc(doc(db, COLLECTIONS.losses, id), {
       status: "cancelled",
@@ -310,7 +312,7 @@ async function submitLossCorrection() {
   }
 }
 
-document.getElementById("submitProductLoss")?.addEventListener("click", async () => {
+bindActionButton(document.getElementById("submitProductLoss"), async () => {
   try {
     const productId = document.getElementById("productSelect")?.value;
     const qtyLost = Number(document.getElementById("productQuantityLost")?.value);
@@ -337,7 +339,7 @@ document.getElementById("submitProductLoss")?.addEventListener("click", async ()
     const amount = qtyLost * priceBuy;
     const useFifo = expirationFeatureEnabled && product.hasExpiration;
 
-    const ref = await addDoc(collection(db, COLLECTIONS.losses), {
+    const ref = await addDoc(collection(db, COLLECTIONS.losses), withEntityScope({
       reason,
       category: "product_loss",
       amount,
@@ -345,7 +347,7 @@ document.getElementById("submitProductLoss")?.addEventListener("click", async ()
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       createdBy: currentUserId
-    });
+    }));
 
     if (useFifo) {
       const movements = await loadProductMovements(productId);
@@ -408,7 +410,7 @@ document.getElementById("submitProductLoss")?.addEventListener("click", async ()
   }
 });
 
-document.getElementById("submitMoneyLoss")?.addEventListener("click", async () => {
+bindActionButton(document.getElementById("submitMoneyLoss"), async () => {
   const amount = Number(document.getElementById("moneyLostAmount")?.value);
   const reason = document.getElementById("moneyLossReason")?.value;
 
@@ -425,7 +427,7 @@ document.getElementById("submitMoneyLoss")?.addEventListener("click", async () =
   try {
     console.log("[losses] addDoc money", { amount, reason });
 
-    await addDoc(collection(db, COLLECTIONS.losses), {
+    await addDoc(collection(db, COLLECTIONS.losses), withEntityScope({
       reason,
       category: "money_loss",
       amount,
@@ -433,7 +435,7 @@ document.getElementById("submitMoneyLoss")?.addEventListener("click", async () =
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       createdBy: currentUserId
-    });
+    }));
 
     await writeLog({
       userId: currentUserId,
@@ -459,8 +461,8 @@ document.getElementById("submitMoneyLoss")?.addEventListener("click", async () =
   }
 });
 
-document.getElementById("applyFirebaseFilter")?.addEventListener("click", () => loadData(true));
-document.getElementById("lossCorrectionSaveBtn")?.addEventListener("click", submitLossCorrection);
+bindActionButton(document.getElementById("applyFirebaseFilter"), async () => loadData(true));
+bindActionButton(document.getElementById("lossCorrectionSaveBtn"), submitLossCorrection);
 document.getElementById("lossCorrectionCancelBtn")?.addEventListener("click", () => {
   closeActionModal(lossCorrectionModal, document.getElementById("lossCorrectionError"));
 });

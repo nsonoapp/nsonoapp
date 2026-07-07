@@ -5,9 +5,23 @@ import {
   setDoc,
   writeBatch,
   Timestamp,
-  writeLog
+  writeLog,
+  collection,
+  query,
+  limit,
+  getDocs
 } from "./firebase.js";
 import { getAuth, signOut, onAuthStateChanged } from "./auth.js";
+import {
+  resolveCompanyAccess,
+  storeCompanySession,
+  hasSingleCompany
+} from "../admin/js/company-auth.js";
+import { setEntityContext } from "../admin/js/entity-context.js";
+import {
+  loadUserPermissions,
+  clearPermissionsCache
+} from "../admin/js/permissions.js";
 
 const MAX_USERS = 5;
 const auth = getAuth();
@@ -82,12 +96,70 @@ export async function loadUserProfile(uid) {
   return { id: snap.id, ...snap.data() };
 }
 
-export async function completeLogin(uid, role, action) {
+export async function hasActiveCompanies() {
+  return hasSingleCompany();
+}
+
+export function isUserApproved(userData) {
+  if (!userData?.approvalStatus) {
+    return true;
+  }
+  return userData.approvalStatus === "approved";
+}
+
+export function applyNsonoSession(userData, company = null) {
+  const uid = userData?.userId || userData?.id;
+  const companyId = company?.id || userData?.companyId || null;
+  const isMasterAdmin = Boolean(
+    company?.masterAdminId === uid || userData?.role === "admin"
+  );
+
+  setEntityContext({
+    companyId,
+    entityId: userData?.entityId || null,
+    isMasterAdmin
+  });
+
+  if (company?.id) {
+    storeCompanySession(company.id, company.name || "");
+  } else if (companyId && userData?.companyName) {
+    storeCompanySession(companyId, userData.companyName);
+  }
+
+  clearPermissionsCache();
+}
+
+export async function validateCompanyAccess(companyIdentifier) {
+  const hasCompanies = await hasActiveCompanies();
+  if (!hasCompanies) {
+    return { ok: true, skipped: true, company: null };
+  }
+
+  if (!String(companyIdentifier || "").trim()) {
+    return { ok: false, error: "company_required", company: null };
+  }
+
+  return resolveCompanyAccess(companyIdentifier);
+}
+
+export function assertUserCompanyMatch(userData, company) {
+  if (!company || !userData?.companyId) {
+    return true;
+  }
+  return userData.companyId === company.id;
+}
+
+export async function completeLogin(uid, role, action, userData = null, company = null) {
   storeSession(uid, role);
+  if (userData) {
+    applyNsonoSession(userData, company);
+    await loadUserPermissions(uid);
+  }
   await writeLog({
     userId: uid,
     action,
-    role
+    role,
+    details: company?.id ? { companyId: company.id } : null
   });
 }
 
@@ -112,14 +184,24 @@ export async function ensureFirestoreUser(user, options = {}) {
   const batch = writeBatch(db);
 
   console.log("[auth-flow] batch.set users/", uid);
-  batch.set(doc(db, "users", uid), {
+  const userPayload = {
     userId: uid,
     name: user.displayName || user.email?.split("@")[0] || "Utilisateur",
     email: (user.email || "").toLowerCase(),
     role: "seller",
     isActive,
+    roleIds: [],
     createdAt: Timestamp.now()
-  });
+  };
+
+  if (options.companyId) {
+    userPayload.companyId = options.companyId;
+    userPayload.entityId = options.entityId || null;
+    userPayload.approvalStatus = options.approvalStatus || "pending";
+    userPayload.isActive = options.approvalStatus === "approved" ? isActive : false;
+  }
+
+  batch.set(doc(db, "users", uid), userPayload);
 
   batch.update(metaRef, {
     usersCount: usersCount + 1
@@ -144,6 +226,26 @@ export function authErrorMessage(err, fallback = "Erreur") {
 
   if (message === "auth_not_ready") {
     return "Session non prête après connexion. Réessayez.";
+  }
+
+  if (message === "company_required") {
+    return "Nom ou code société requis.";
+  }
+
+  if (message === "company_not_found") {
+    return "Société introuvable.";
+  }
+
+  if (message === "company_mismatch") {
+    return "Ce compte n'appartient pas à cette société.";
+  }
+
+  if (message === "approval_pending") {
+    return "Compte en attente d'approbation par un administrateur.";
+  }
+
+  if (message === "approval_rejected") {
+    return "Compte refusé par un administrateur.";
   }
 
   const code = err?.code || "";

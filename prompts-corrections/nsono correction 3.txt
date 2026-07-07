@@ -1,0 +1,20 @@
+
+> "Agis en tant qu'architecte logiciel expert en développement web Firebase.  **'NSONO'** pour une usine de savon.
+
+>  2. **Architecture Admin :** Déplacer settings.html, settings.js et leur CSS vers le répertoire /admin/. Mettre à jour les liens.
+>  3. **Gestion Mixte (Stocks) :** Gérer deux types de stocks : 'Ventes' et 'Outils'. Ajouter un champ type dans les documents Firestore pour différencier les inventaires et adapter les interfaces.
+>  4. **Paramètres et Configurations :**
+>    * Activer la collection settings.
+>    * Chaque entité doit avoir ses propres configurations, en plus d'une configuration globale main_config.
+>    * Permettre à l'administrateur de l'entité de gérer ses configurations dans admin/settings.html.
+>  5. **Statistiques :** Créer une page admin/stats.html accessible uniquement à l'Admin Général pour les statistiques agrégées (Ventes + Outils).
+>  6. **'Local Lock Mode' (Protection Écritures) :**
+>    * Ajouter un bouton dans admin/settings.html pour activer/désactiver le 'Lock Mode'.
+>    * **Logique technique :** Ce bouton doit agir uniquement en **LocalStorage** (localStorage.setItem('appLocked', 'true')) sur l'appareil actuel.
+>    * **Sécurité Front-end :** Dans le fichier JS central qui gère les écritures Firebase (ajouts, modifications, suppressions), ajouter un middleware qui vérifie : if (localStorage.getItem('appLocked') === 'true') { alert('Action bloquée sur cet appareil'); return; }.
+>    * Le bouton d'état doit être visible dans le head de index.html pour refléter l'état du verrouillage local.
+> **Instructions pour Cursor :**
+>  * Analyse d'abord ma structure de fichiers actuelle.
+>  * Ne supprime pas la logique existante, rends-la compatible avec cette hiérarchie.
+>  * Avant toute modification, liste les fichiers que tu vas impacter et propose la structure JSON pour la nouvelle collection settings."
+> 

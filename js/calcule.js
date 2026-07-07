@@ -3,12 +3,56 @@ document.getElementById(
   "calcBtn"
 );
 
+if (!calcBtn) {
+  /* Page sans bouton calculatrice */
+} else {
+
 const searchBar =
 document.querySelector(
   ".search-bar"
 );
 
 let calcOpened = false;
+let calcInjectTarget = null;
+
+function isExternalWritableField(el) {
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) {
+    return false;
+  }
+  if (el.readOnly || el.disabled) {
+    return false;
+  }
+  if (el.closest(".sf-calc-box")) {
+    return false;
+  }
+  if (el instanceof HTMLTextAreaElement) {
+    return true;
+  }
+  const blocked = ["hidden", "checkbox", "radio", "submit", "button", "file", "password"];
+  if (blocked.includes(el.type)) {
+    return false;
+  }
+  return true;
+}
+
+function applyCalcResult(value) {
+  const result = String(value);
+  if (result === "Erreur" || result === "NaN" || result === "undefined") {
+    return;
+  }
+
+  const active = document.activeElement;
+  const target = isExternalWritableField(active)
+    ? active
+    : calcInjectTarget;
+
+  if (!target || !isExternalWritableField(target)) {
+    return;
+  }
+
+  target.value = result;
+  target.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
 /* =========================
 OVERLAY
@@ -329,17 +373,7 @@ keys.forEach(key => {
             )
           );
 
-        const amountPaid =
-        document.getElementById(
-          "amountPaid"
-        );
-
-        if(amountPaid){
-
-          amountPaid.value =
-            expression;
-
-        }
+        applyCalcResult(expression);
 
       }
 
@@ -537,6 +571,9 @@ OPEN / CLOSE
 
 function openCalc(){
 
+  const active = document.activeElement;
+  calcInjectTarget = isExternalWritableField(active) ? active : null;
+
   positionCalcBox();
 
   overlay.style.display =
@@ -552,6 +589,7 @@ function closeCalc(){
     "none";
 
   calcOpened = false;
+  calcInjectTarget = null;
 
 }
 
@@ -579,6 +617,18 @@ box.addEventListener(
 
     event.stopPropagation();
 
+  }
+);
+
+document.addEventListener(
+  "focusin",
+  event => {
+    if (!calcOpened) {
+      return;
+    }
+    if (isExternalWritableField(event.target)) {
+      calcInjectTarget = event.target;
+    }
   }
 );
 
@@ -611,3 +661,5 @@ document.addEventListener(
 
   }
 );
+
+}

@@ -11,6 +11,7 @@ import {
 
 import { auth, onAuthStateChanged } from "./auth.js";
 import { getAppConfig } from "./appConfig.js";
+import { bindActionButton } from "./utils/buttonManager.js";
 
 const $ = id => document.getElementById(id);
 
@@ -592,7 +593,7 @@ function render() {
   container.appendChild(fragment);
 }
 
-function resetFilters() {
+async function resetFilters() {
   $("productFilter").value = "";
   $("paymentFilter").value = "";
   $("statusFilter").value = "";
@@ -613,7 +614,7 @@ function resetFilters() {
   }
 
   updateDateLimits();
-  loadData();
+  await loadData();
 }
 
 function bindEvents() {
@@ -635,7 +636,7 @@ function bindEvents() {
     updateDateLimits();
   });
 
-  $("applyFiltersBtn")?.addEventListener("click", () => {
+  bindActionButton($("applyFiltersBtn"), async () => {
     if ($("statsRange")?.value === "custom") {
       const from = $("dateFrom")?.value;
       const to = $("dateTo")?.value;
@@ -651,7 +652,7 @@ function bindEvents() {
         return;
       }
     }
-    loadData();
+    await loadData();
   });
 
   $("clientSearch")?.addEventListener("keydown", event => {
@@ -661,7 +662,7 @@ function bindEvents() {
     }
   });
 
-  $("resetBtn")?.addEventListener("click", resetFilters);
+  bindActionButton($("resetBtn"), resetFilters);
 
   const custom = $("statsRange")?.value === "custom";
   if ($("dateFrom")) {

@@ -1,0 +1,21 @@
+
+> "Agis en tant qu'expert en architecture logicielle JavaScript. Mon application actuelle (NSONO) possède une structure 'junior' où chaque fichier JS gère directement ses propres écritures Firebase. Je souhaite passer à une architecture plus robuste ('senior') sans casser la logique métier existante.
+> **Objectifs de la mission :**
+>  1. **Centralisation (Firebase Service) :**
+>    * Crée un fichier unique (ex: /js/services/firebaseService.js) qui contiendra toutes les méthodes d'écriture (ex: addData(), updateData(), deleteData()).
+>    * Ce service doit agir comme une couche d'abstraction : les autres fichiers JS appelleront désormais ces fonctions au lieu d'appeler directement Firebase.
+>  2. **Refactorisation Progressive :**
+>    * Ne supprime pas l'ancien code tout de suite. Réorganise le code existant pour qu'il utilise ce nouveau service.
+>    * Le but est d'avoir un point de contrôle unique pour toutes les écritures.
+>  3. **Implémentation du 'Local Lock' :**
+>    * Intègre directement dans firebaseService.js une vérification du localStorage (clé appLocked).
+>    * Si appLocked === 'true', le service doit bloquer toute écriture et retourner un message d'erreur/alerte. Cela centralise la sécurité de manière propre.
+
+
+
+> **Contrainte absolue :**
+>  * Ne change PAS la logique métier. Le comportement de l'application (comment le savon est compté, comment les stocks sont gérés) doit rester identique.
+>  * Procède par étapes : commence par me proposer la structure de dossiers idéale, puis montre-moi comment tu vas refactoriser une première fonction d'écriture avant d'appliquer le changement à tout le projet."
+> 
+
+
