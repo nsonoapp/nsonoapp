@@ -1,5 +1,5 @@
 // firebase.js offline 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 
 import {
   initializeFirestore,
@@ -26,16 +26,16 @@ import {
   limit,
   onSnapshot
 
-} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAwY95NM8QKiRxNHvfxiGrjvhKG16Lpl5E",
-  authDomain: "test-stockflow-offline.firebaseapp.com",
-  projectId: "test-stockflow-offline",
-  storageBucket: "test-stockflow-offline.firebasestorage.app",
-  messagingSenderId: "721689942624",
-  appId: "1:721689942624:web:a29d362e5fccd7e2ce4105",
-  measurementId: "G-67C96ZB39P"
+  apiKey: "AIzaSyDuNj63Ja3qlsHLRrNtC93O1ZAgN341_rM",
+  authDomain: "nsono-app-db.firebaseapp.com",
+  projectId: "nsono-app-db",
+  storageBucket: "nsono-app-db.firebasestorage.app",
+  messagingSenderId: "539756984875",
+  appId: "1:539756984875:web:22ffa963701c49e0eac86e",
+  measurementId: "G-9LKX3PVBWP"
 };
 
 const app = initializeApp(firebaseConfig);
