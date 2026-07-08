@@ -110,8 +110,13 @@ export function isUserApproved(userData) {
 export function applyNsonoSession(userData, company = null) {
   const uid = userData?.userId || userData?.id;
   const companyId = company?.id || userData?.companyId || null;
+  const masterAdminIds = Array.isArray(company?.masterAdminIds)
+    ? company.masterAdminIds
+    : [];
   const isMasterAdmin = Boolean(
-    company?.masterAdminId === uid || userData?.role === "admin"
+    masterAdminIds.includes(uid) ||
+    company?.masterAdminId === uid ||
+    userData?.role === "admin"
   );
 
   setEntityContext({
@@ -129,17 +134,12 @@ export function applyNsonoSession(userData, company = null) {
   clearPermissionsCache();
 }
 
-export async function validateCompanyAccess(companyIdentifier) {
+export async function validateCompanyAccess(credentials = {}) {
   const hasCompanies = await hasActiveCompanies();
   if (!hasCompanies) {
-    return { ok: true, skipped: true, company: null };
+    return { ok: false, error: "company_not_found", company: null };
   }
-
-  if (!String(companyIdentifier || "").trim()) {
-    return { ok: false, error: "company_required", company: null };
-  }
-
-  return resolveCompanyAccess(companyIdentifier);
+  return resolveCompanyAccess(credentials);
 }
 
 export function assertUserCompanyMatch(userData, company) {
@@ -164,7 +164,6 @@ export async function completeLogin(uid, role, action, userData = null, company 
 }
 
 export async function ensureFirestoreUser(user, options = {}) {
-  const isActive = options.isActive !== false;
   const uid = user.uid;
 
   await waitForAuthReady(auth, uid);
@@ -188,17 +187,16 @@ export async function ensureFirestoreUser(user, options = {}) {
     userId: uid,
     name: user.displayName || user.email?.split("@")[0] || "Utilisateur",
     email: (user.email || "").toLowerCase(),
-    role: "seller",
-    isActive,
+    role: "user",
+    isActive: false,
     roleIds: [],
+    approvalStatus: "pending",
     createdAt: Timestamp.now()
   };
 
   if (options.companyId) {
     userPayload.companyId = options.companyId;
     userPayload.entityId = options.entityId || null;
-    userPayload.approvalStatus = options.approvalStatus || "pending";
-    userPayload.isActive = options.approvalStatus === "approved" ? isActive : false;
   }
 
   batch.set(doc(db, "users", uid), userPayload);
@@ -234,6 +232,30 @@ export function authErrorMessage(err, fallback = "Erreur") {
 
   if (message === "company_not_found") {
     return "Société introuvable.";
+  }
+
+  if (message === "company_password_required") {
+    return "Mot de passe société requis.";
+  }
+
+  if (message === "company_password_invalid") {
+    return "Mot de passe société invalide ou non configuré.";
+  }
+
+  if (message === "entity_required") {
+    return "Entité requise.";
+  }
+
+  if (message === "entity_not_found") {
+    return "Entité introuvable.";
+  }
+
+  if (message === "entity_password_required") {
+    return "Mot de passe entité requis.";
+  }
+
+  if (message === "entity_password_invalid") {
+    return "Mot de passe entité invalide ou non configuré.";
   }
 
   if (message === "company_mismatch") {

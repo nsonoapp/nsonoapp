@@ -44,8 +44,11 @@ bindFormAction(signupForm, async () => {
   const password = document.getElementById("password")?.value;
   const isActive = document.getElementById("isActive")?.checked ?? true;
   const companyName = document.getElementById("companyName")?.value.trim();
+  const companyPassword = document.getElementById("companyPassword")?.value || "";
+  const entityName = document.getElementById("entityName")?.value.trim();
+  const entityPassword = document.getElementById("entityPassword")?.value || "";
 
-  if (!fullName || !email || !password) {
+  if (!fullName || !email || !password || !companyName || !companyPassword || !entityName || !entityPassword) {
     alert("Remplis tous les champs");
     return;
   }
@@ -69,19 +72,23 @@ bindFormAction(signupForm, async () => {
       throw new Error("user_limit");
     }
 
-    const companyAccess = await validateCompanyAccess(companyName);
+    const companyAccess = await validateCompanyAccess({
+      companyIdentifier: companyName,
+      companyPassword,
+      entityIdentifier: entityName,
+      entityPassword
+    });
     if (!companyAccess.ok) {
       await signOut(auth);
       throw new Error(companyAccess.error || "company_credentials_required");
     }
 
-    const nsonoFields = {};
-    if (companyAccess.company) {
-      nsonoFields.companyId = companyAccess.company.id;
-      nsonoFields.entityId = null;
-      nsonoFields.approvalStatus = "pending";
-      nsonoFields.roleIds = [];
-    }
+    const nsonoFields = {
+      companyId: companyAccess.company.id,
+      entityId: companyAccess.entity?.id || null,
+      approvalStatus: "pending",
+      roleIds: []
+    };
 
     const batch = writeBatch(db);
 
@@ -90,8 +97,8 @@ bindFormAction(signupForm, async () => {
       userId: uid,
       name: fullName,
       email,
-      role: "seller",
-      isActive: companyAccess.company ? false : isActive,
+      role: "user",
+      isActive: false,
       roleIds: [],
       createdAt: Timestamp.now(),
       ...nsonoFields
@@ -110,18 +117,14 @@ bindFormAction(signupForm, async () => {
       action: "signup",
       details: {
         email,
-        role: "seller",
+        role: "user",
         companyId: nsonoFields.companyId || null,
         approvalStatus: nsonoFields.approvalStatus || null
       }
     });
 
     await signOut(auth);
-    if (nsonoFields.approvalStatus === "pending") {
-      alert("Compte créé ! En attente d'approbation par un administrateur.");
-    } else {
-      alert("Compte créé ! Connectez-vous.");
-    }
+    alert("Compte créé ! En attente d'approbation par un administrateur.");
     window.location.replace("login.html");
   } catch (err) {
     console.error("[signup] erreur:", err?.code || err?.message, err);
@@ -133,9 +136,12 @@ bindActionButton(googleSignupBtn, async () => {
   try {
     await setPersistence(auth, browserLocalPersistence);
 
-    const companyAccess = await validateCompanyAccess(
-      document.getElementById("companyName")?.value.trim()
-    );
+    const companyAccess = await validateCompanyAccess({
+      companyIdentifier: document.getElementById("companyName")?.value.trim(),
+      companyPassword: document.getElementById("companyPassword")?.value || "",
+      entityIdentifier: document.getElementById("entityName")?.value.trim(),
+      entityPassword: document.getElementById("entityPassword")?.value || ""
+    });
     if (!companyAccess.ok) {
       throw new Error(companyAccess.error || "company_credentials_required");
     }
@@ -149,8 +155,7 @@ bindActionButton(googleSignupBtn, async () => {
     const userData = await ensureFirestoreUser(result.user, {
       isActive,
       companyId: companyAccess.company?.id || null,
-      entityId: null,
-      approvalStatus: companyAccess.company ? "pending" : "approved"
+      entityId: companyAccess.entity?.id || null
     });
 
     if (userData?.approvalStatus === "rejected") {
@@ -160,8 +165,9 @@ bindActionButton(googleSignupBtn, async () => {
     }
 
     if (!isUserApproved(userData)) {
-      await signOut(auth);
-      alert(authErrorMessage({ message: "approval_pending" }));
+      localStorage.setItem("userId", userData.userId || userData.id || "");
+      localStorage.setItem("userRole", userData.role || "user");
+      window.location.replace("waiting.html");
       return;
     }
 
@@ -172,8 +178,9 @@ bindActionButton(googleSignupBtn, async () => {
     }
 
     if (!isAllowedRole(userData.role)) {
-      await signOut(auth);
-      alert("Accès refusé : rôle non autorisé");
+      localStorage.setItem("userId", userData.userId || userData.id || "");
+      localStorage.setItem("userRole", userData.role || "user");
+      window.location.replace("waiting.html");
       return;
     }
 

@@ -33,24 +33,33 @@ const loginForm = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const companyNameInput = document.getElementById("companyName");
+const companyPasswordInput = document.getElementById("companyPassword");
+const entityNameInput = document.getElementById("entityName");
+const entityPasswordInput = document.getElementById("entityPassword");
 const rememberMeCheckbox = document.getElementById("rememberMe");
 const googleLoginBtn = document.getElementById("googleLoginBtn");
 
 initPasswordToggles();
 
 async function resolveCompanyGate() {
-  const companyAccess = await validateCompanyAccess(
-    companyNameInput?.value.trim()
-  );
+  const companyAccess = await validateCompanyAccess({
+    companyIdentifier: companyNameInput?.value.trim(),
+    companyPassword: companyPasswordInput?.value || "",
+    entityIdentifier: entityNameInput?.value.trim(),
+    entityPassword: entityPasswordInput?.value || ""
+  });
 
   if (!companyAccess.ok) {
     throw new Error(companyAccess.error || "company_credentials_required");
   }
 
-  return companyAccess.company;
+  return companyAccess;
 }
 
-async function redirectAfterLogin(userData, action, company = null) {
+async function redirectAfterLogin(userData, action, companyAccess = null) {
+  const company = companyAccess?.company || null;
+  const entity = companyAccess?.entity || null;
+
   if (userData?.approvalStatus === "rejected") {
     await signOut(auth);
     alert(authErrorMessage({ message: "approval_rejected" }));
@@ -58,8 +67,9 @@ async function redirectAfterLogin(userData, action, company = null) {
   }
 
   if (!isUserApproved(userData)) {
-    await signOut(auth);
-    alert(authErrorMessage({ message: "approval_pending" }));
+    localStorage.setItem("userId", userData.userId || userData.id || "");
+    localStorage.setItem("userRole", userData.role || "user");
+    window.location.replace("waiting.html");
     return;
   }
 
@@ -70,14 +80,21 @@ async function redirectAfterLogin(userData, action, company = null) {
   }
 
   if (!isAllowedRole(userData.role)) {
-    await signOut(auth);
-    alert("Accès refusé : rôle non autorisé");
+    localStorage.setItem("userId", userData.userId || userData.id || "");
+    localStorage.setItem("userRole", userData.role || "user");
+    window.location.replace("waiting.html");
     return;
   }
 
   if (!assertUserCompanyMatch(userData, company)) {
     await signOut(auth);
     alert(authErrorMessage({ message: "company_mismatch" }));
+    return;
+  }
+
+  if (entity?.id && userData?.entityId && userData.entityId !== entity.id) {
+    await signOut(auth);
+    alert("Ce compte n'appartient pas à cette entité.");
     return;
   }
 
@@ -116,8 +133,8 @@ bindFormAction(loginForm, async () => {
       return;
     }
 
-    const company = await resolveCompanyGate();
-    await redirectAfterLogin(userData, "login", company);
+    const companyAccess = await resolveCompanyGate();
+    await redirectAfterLogin(userData, "login", companyAccess);
   } catch (err) {
     console.error("[login] erreur:", err?.code || err?.message, err);
     alert(authErrorMessage(err, "Erreur de connexion"));
@@ -141,8 +158,8 @@ async function handleGoogleLogin() {
       userData = await ensureFirestoreUser(result.user, { isActive: true });
     }
 
-    const company = await resolveCompanyGate();
-    await redirectAfterLogin(userData, "google_login", company);
+    const companyAccess = await resolveCompanyGate();
+    await redirectAfterLogin(userData, "google_login", companyAccess);
   } catch (err) {
     console.error("[login] Google erreur:", err?.code || err?.message, err);
     alert(authErrorMessage(err, "Erreur connexion Google"));

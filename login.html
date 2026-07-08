@@ -152,10 +152,31 @@
 
       <div class="field-group">
         <label for="companyName">Nom de la société</label>
-        <input type="text" id="companyName" placeholder="Nom ou code société" maxlength="80" autocomplete="organization">
+        <input type="text" id="companyName" placeholder="Nom ou code société" maxlength="80" autocomplete="organization" required>
       </div>
 
-      <p class="hint">Requis si votre organisation utilise NSONO multi-entités. Le mot de passe société n'est jamais saisi ici (vérification serveur à venir).</p>
+      <div class="field-group">
+        <label for="companyPassword">Mot de passe société</label>
+        <div class="password-field">
+          <input type="password" id="companyPassword" placeholder="Mot de passe société" autocomplete="off" required minlength="6">
+          <button type="button" class="password-toggle" data-password-toggle="companyPassword" aria-label="Afficher le mot de passe société"></button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="entityName">Entité</label>
+        <input type="text" id="entityName" placeholder="Nom ou ID entité" maxlength="80" autocomplete="off" required>
+      </div>
+
+      <div class="field-group">
+        <label for="entityPassword">Mot de passe entité</label>
+        <div class="password-field">
+          <input type="password" id="entityPassword" placeholder="Mot de passe entité" autocomplete="off" required minlength="6">
+          <button type="button" class="password-toggle" data-password-toggle="entityPassword" aria-label="Afficher le mot de passe entité"></button>
+        </div>
+      </div>
+
+      <p class="hint">Connexion bloquée sans mot de passe société et entité valides.</p>
 
       <div class="checkbox-group">
         <input type="checkbox" id="rememberMe">

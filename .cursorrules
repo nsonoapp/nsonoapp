@@ -1,0 +1,21 @@
+# Règles de Développement pour Elonga Stark
+
+## 1. Processus de Validation (CRITIQUE)
+- Avant de créer ou de modifier n'importe quel fichier, tu DOIS proposer une liste des changements prévus avec une brève explication du rôle de chaque fichier.
+- ATTENDS ma validation explicite avant d'écrire le code ou de créer les fichiers.
+- Ne crée pas une multitude de fichiers. Privilégie la maintenance d'une structure compacte. Fusionne les logiques si possible.
+
+## 2. Intégrité du Code
+- NE MODIFIE JAMAIS un fichier qui n'est pas directement concerné par la tâche en cours.
+- NE CASSE JAMAIS la logique métier existante. Si tu as un doute sur une dépendance, demande avant de modifier.
+- Si le code existant nécessite une refactorisation lourde, propose-la en tant que plan séparé avant d'agir.
+
+## 3. Architecture & Sécurité
+- Travaille en mode "Application métier" (SaaS), jamais en mode "Boutique".
+- Applique l'isolation des données par entité (`entityId`) de manière stricte.
+- Le flux de validation admin est obligatoire pour toute action sensible (changement de rôle, approbation utilisateur).
+- Sépare strictement les `Paramètres Généraux` (ID `main`) des `Paramètres d'Entité`.
+
+## 4. Communication
+- Sois concis et professionnel. Pas de "blabla".
+- Priorise toujours la sécurité (Firestore Rules + logique côté client).

@@ -25,6 +25,7 @@ const companyNameInput = document.getElementById("companyName");
 const companyCodeInput = document.getElementById("companyCode");
 const companyPasswordInput = document.getElementById("companyPassword");
 const entityNameInput = document.getElementById("entityName");
+const entityPasswordInput = document.getElementById("entityPassword");
 const onboardingForm = document.getElementById("onboardingForm");
 const onboardingSubmitBtn = document.getElementById("onboardingSubmitBtn");
 
@@ -47,6 +48,7 @@ async function bootstrapCompany(user) {
   const companyCode = sanitizeText(companyCodeInput?.value, 32);
   const password = String(companyPasswordInput?.value || "");
   const entityName = sanitizeText(entityNameInput?.value, 80);
+  const entityPassword = String(entityPasswordInput?.value || "");
 
   if (await hasSingleCompany()) {
     showMessage("onboardingDebug", "Une société existe déjà pour cette base. Création interdite.", true);
@@ -59,21 +61,24 @@ async function bootstrapCompany(user) {
     return;
   }
 
-  if (!entityName) {
-    showMessage("onboardingDebug", "Nom de la première entité requis.", true);
+  if (!entityName || entityPassword.length < 6) {
+    showMessage("onboardingDebug", "Nom de la première entité et mot de passe entité (6 car. min.) requis.", true);
     return;
   }
 
   try {
     const passwordHash = await hashCompanyPassword(password);
+    const entityPasswordHash = await hashCompanyPassword(entityPassword);
     const companyRef = doc(db, ADMIN_COLLECTIONS.companies, SINGLE_COMPANY_ID);
     const secretRef = doc(db, ADMIN_COLLECTIONS.companySecrets, SINGLE_COMPANY_ID);
     const entityRef = doc(collection(db, ADMIN_COLLECTIONS.entities));
+    const entitySecretRef = doc(db, ADMIN_COLLECTIONS.entitySecrets, entityRef.id);
 
     const companyBatch = writeBatch(db);
     companyBatch.set(companyRef, {
       name,
       companyCode: companyCode || name.toLowerCase().replace(/\s+/g, "-").slice(0, 32),
+      masterAdminIds: [user.uid],
       masterAdminId: user.uid,
       isActive: true,
       createdAt: Timestamp.now(),
@@ -93,6 +98,12 @@ async function bootstrapCompany(user) {
       adminId: user.uid,
       isActive: true,
       createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+    secretBatch.set(entitySecretRef, {
+      companyId: SINGLE_COMPANY_ID,
+      entityId: entityRef.id,
+      passwordHash: entityPasswordHash,
       updatedAt: Timestamp.now()
     });
     await secretBatch.commit();

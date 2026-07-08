@@ -3,10 +3,7 @@ import {
   doc,
   getDoc,
   collection,
-  query,
-  where,
   getDocs,
-  limit,
   setDoc,
   deleteDoc,
   Timestamp
@@ -63,6 +60,35 @@ export async function resolveCompanyByNameOrCode(identifier) {
   return null;
 }
 
+export async function resolveEntityByName(companyId, entityIdentifier) {
+  const key = String(entityIdentifier || "").trim();
+  if (!companyId || !key) {
+    return null;
+  }
+
+  const byId = await getDoc(doc(db, ADMIN_COLLECTIONS.entities, key));
+  if (byId.exists()) {
+    const data = byId.data();
+    if (data.companyId === companyId && data.isActive !== false) {
+      return { id: byId.id, ...data };
+    }
+  }
+
+  const snap = await getDocs(collection(db, ADMIN_COLLECTIONS.entities));
+  for (const item of snap.docs) {
+    const data = item.data();
+    if (
+      data.companyId === companyId &&
+      data.isActive !== false &&
+      String(data.name || "").trim() === key
+    ) {
+      return { id: item.id, ...data };
+    }
+  }
+
+  return null;
+}
+
 export async function verifyCompanyPasswordViaRules(companyId, plainPassword) {
   if (companyId !== SINGLE_COMPANY_ID) {
     return false;
@@ -100,7 +126,50 @@ export async function verifyCompanyPasswordViaRules(companyId, plainPassword) {
   }
 }
 
-export async function resolveCompanyAccess(companyIdentifier) {
+export async function verifyEntityPasswordViaRules(entityId, plainPassword) {
+  const targetId = String(entityId || "").trim();
+  if (!targetId) {
+    return false;
+  }
+
+  const passwordHash = await hashCompanyPassword(plainPassword);
+  if (!passwordHash) {
+    return false;
+  }
+
+  const auth = getAuth();
+  const uid = auth.currentUser?.uid;
+  if (!uid) {
+    return false;
+  }
+
+  const probeRef = doc(collection(db, ADMIN_COLLECTIONS.entityAuthProbes));
+
+  try {
+    await setDoc(probeRef, {
+      entityId: targetId,
+      passwordHash,
+      uid,
+      createdAt: Timestamp.now()
+    });
+    await deleteDoc(probeRef);
+    return true;
+  } catch {
+    try {
+      await deleteDoc(probeRef);
+    } catch {
+      /* sonde refusée */
+    }
+    return false;
+  }
+}
+
+export async function resolveCompanyAccess({
+  companyIdentifier,
+  companyPassword,
+  entityIdentifier,
+  entityPassword
+}) {
   const company = await getSingleCompany();
   if (!company) {
     return { ok: false, error: "company_not_found", company: null };
@@ -116,7 +185,43 @@ export async function resolveCompanyAccess(companyIdentifier) {
     return { ok: false, error: "company_not_found", company: null };
   }
 
-  return { ok: true, company: matched };
+  const companyPasswordValue = String(companyPassword || "");
+  if (!companyPasswordValue) {
+    return { ok: false, error: "company_password_required", company: null };
+  }
+
+  const companyPasswordOk = await verifyCompanyPasswordViaRules(
+    matched.id,
+    companyPasswordValue
+  );
+  if (!companyPasswordOk) {
+    return { ok: false, error: "company_password_invalid", company: null };
+  }
+
+  const entityKey = String(entityIdentifier || "").trim();
+  if (!entityKey) {
+    return { ok: false, error: "entity_required", company: null };
+  }
+
+  const entity = await resolveEntityByName(matched.id, entityKey);
+  if (!entity) {
+    return { ok: false, error: "entity_not_found", company: null };
+  }
+
+  const entityPasswordValue = String(entityPassword || "");
+  if (!entityPasswordValue) {
+    return { ok: false, error: "entity_password_required", company: null };
+  }
+
+  const entityPasswordOk = await verifyEntityPasswordViaRules(
+    entity.id,
+    entityPasswordValue
+  );
+  if (!entityPasswordOk) {
+    return { ok: false, error: "entity_password_invalid", company: null };
+  }
+
+  return { ok: true, company: matched, entity };
 }
 
 export function storeCompanySession(companyId, companyName) {

@@ -170,10 +170,31 @@
 
       <div class="field-group">
         <label for="companyName">Nom de la société</label>
-        <input type="text" id="companyName" placeholder="Nom ou code société" maxlength="80" autocomplete="organization">
+        <input type="text" id="companyName" placeholder="Nom ou code société" maxlength="80" autocomplete="organization" required>
       </div>
 
-      <p class="hint">Requis si une société NSONO est configurée. Votre compte sera validé par un administrateur.</p>
+      <div class="field-group">
+        <label for="companyPassword">Mot de passe société</label>
+        <div class="password-field">
+          <input type="password" id="companyPassword" required autocomplete="off" minlength="6">
+          <button type="button" class="password-toggle" data-password-toggle="companyPassword" aria-label="Afficher le mot de passe société"></button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="entityName">Entité</label>
+        <input type="text" id="entityName" placeholder="Nom ou ID entité" maxlength="80" autocomplete="off" required>
+      </div>
+
+      <div class="field-group">
+        <label for="entityPassword">Mot de passe entité</label>
+        <div class="password-field">
+          <input type="password" id="entityPassword" required autocomplete="off" minlength="6">
+          <button type="button" class="password-toggle" data-password-toggle="entityPassword" aria-label="Afficher le mot de passe entité"></button>
+        </div>
+      </div>
+
+      <p class="hint">Votre compte est créé avec rôle <code>user</code> et statut <code>pending</code> jusqu'à validation admin.</p>
 
       <div class="checkbox-group">
         <input type="checkbox" id="isActive" checked>

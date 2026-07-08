@@ -4,6 +4,7 @@ import {
   addDoc,
   updateDoc,
   doc,
+  setDoc,
   getDocs,
   query,
   where,
@@ -24,6 +25,7 @@ import { getEntityContext } from "./entity-context.js";
 import { hasScope } from "./permissions.js";
 import { applyEntityScope } from "./query-scope.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
+import { hashCompanyPassword } from "./company-auth.js";
 
 let currentUserId = null;
 let permissions = null;
@@ -32,6 +34,7 @@ let entities = [];
 const listEl = document.getElementById("entitiesList");
 const nameInput = document.getElementById("entityName");
 const adminIdInput = document.getElementById("entityAdminId");
+const entityPasswordInput = document.getElementById("entityPassword");
 
 async function loadEntities() {
   const constraints = applyEntityScope([]);
@@ -97,19 +100,32 @@ async function createEntity() {
 
   const name = sanitizeText(nameInput?.value, 80);
   const adminId = sanitizeText(adminIdInput?.value, 128);
+  const entityPassword = String(entityPasswordInput?.value || "");
 
   if (!name) {
     showMessage("adminDebug", "Nom d'entité requis.", true);
     return;
   }
 
+  if (entityPassword.length < 6) {
+    showMessage("adminDebug", "Mot de passe entité requis (6 caractères minimum).", true);
+    return;
+  }
+
   try {
+    const entityPasswordHash = await hashCompanyPassword(entityPassword);
     const ref = await addDoc(collection(db, ADMIN_COLLECTIONS.entities), {
       companyId,
       name,
       adminId: adminId || null,
       isActive: true,
       createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+    await setDoc(doc(db, ADMIN_COLLECTIONS.entitySecrets, ref.id), {
+      companyId,
+      entityId: ref.id,
+      passwordHash: entityPasswordHash,
       updatedAt: Timestamp.now()
     });
 
@@ -122,6 +138,7 @@ async function createEntity() {
 
     if (nameInput) nameInput.value = "";
     if (adminIdInput) adminIdInput.value = "";
+    if (entityPasswordInput) entityPasswordInput.value = "";
     showMessage("adminDebug", "Entité créée.");
     await loadEntities();
   } catch (err) {
