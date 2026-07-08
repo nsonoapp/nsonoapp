@@ -1,6 +1,6 @@
 // stats.js v1 milite role
 import { db, collection, getDocs, getDoc, doc } from "./firebase.js";
-import { getAuth, onAuthStateChanged } from "./auth.js";
+import { getAuth, onAuthStateChanged, signOut } from "./auth.js";
 
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import html2canvas from "https://esm.sh/html2canvas@1.4.1";
@@ -64,11 +64,30 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const snap = await getDoc(doc(db, "users", user.uid));
+  if (!snap.exists()) {
+    await signOut(auth);
+    location.href = "login.html";
+    return;
+  }
   currentUser = snap.data();
+  if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "seller")) {
+    await signOut(auth);
+    location.href = "login.html";
+    return;
+  }
    
    await loadConfig();
   debug("🔄 Chargement...");
   await load();
+});
+
+const logoutBtn = el("logoutBtn");
+bindActionButton(logoutBtn, async () => {
+  try {
+    await signOut(auth);
+  } finally {
+    location.href = "login.html";
+  }
 });
 
 /* =========================

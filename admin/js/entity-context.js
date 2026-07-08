@@ -29,6 +29,11 @@ export function getActiveEntityId() {
   return ctx.entityId;
 }
 
+export function getRequiredEntityId() {
+  const entityId = getActiveEntityId();
+  return entityId ? String(entityId).trim() : null;
+}
+
 export function isMasterAdmin() {
   return getEntityContext().isMasterAdmin;
 }

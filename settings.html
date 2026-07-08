@@ -2,12 +2,28 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=admin/settings.html">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
-<title>NSONO - Paramètres</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; script-src 'self';">
+<title>NSONO - settings</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+body { background:#F5F5F5; color:#111; min-height:100vh; }
+header { background:#0B3D2E; color:#fff; padding:12px; display:flex; justify-content:space-between; align-items:center; }
+header .status { font-size:12px; color:#D4AF37; }
+main { max-width:620px; margin:24px auto; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.08); padding:18px; }
+p { line-height:1.5; color:#444; }
+a.btn { display:inline-block; margin-top:14px; text-decoration:none; background:#0B3D2E; color:#fff; border-radius:10px; padding:10px 14px; font-weight:700; }
+</style>
 </head>
 <body>
-<p>Redirection vers les paramètres admin…</p>
-<script>location.replace("admin/settings.html");</script>
+<header>
+  <h3>NSONO - settings</h3>
+  <div class="status" id="status">● Online</div>
+</header>
+<main>
+  <p>Paramètres publics de l'application. Pour gérer la configuration administrateur, ouvrez la section admin.</p>
+  <a class="btn" href="admin/settings.html">Ouvrir Paramètres Admin</a>
+</main>
+<script src="js/nav.js"></script>
 </body>
 </html>

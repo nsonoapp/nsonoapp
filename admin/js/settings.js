@@ -37,6 +37,7 @@ import {
 } from "./permissions.js";
 
 import { isMasterAdmin } from "./entity-context.js";
+import { getEntityContext } from "./entity-context.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
 import { ADMIN_COLLECTIONS } from "./admin-collections.js";
 
@@ -48,6 +49,7 @@ const auth = getAuth();
 
 let currentUserId = null;
 let activeSettingsId = resolveActiveSettingsId();
+let adminMode = "entity";
 
 const usersCollection = collection(db, "users");
 
@@ -117,6 +119,27 @@ function sanitizeText(value, max = 80) {
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, max);
+}
+
+function sanitizeSubName(value) {
+  return sanitizeText(value, 24);
+}
+
+function isEntitySettingsId(settingsId) {
+  return String(settingsId || "").startsWith("entity_");
+}
+
+function persistEntitySubName(settingsId, data) {
+  if (!isEntitySettingsId(settingsId)) {
+    localStorage.removeItem("nsono_entitySubName");
+    return;
+  }
+  const subName = sanitizeSubName(data?.subName);
+  if (subName) {
+    localStorage.setItem("nsono_entitySubName", subName);
+  } else {
+    localStorage.removeItem("nsono_entitySubName");
+  }
 }
 
 function showLoading(show = true) {
@@ -235,10 +258,7 @@ async function resolveConfigData() {
   }
 
   if (activeSettingsId !== getGlobalSettingsId()) {
-    const global = await loadSettings(getGlobalSettingsId());
-    if (global.exists && global.data) {
-      return global.data;
-    }
+    return null;
   }
 
   const legacySnap = await getDoc(doc(db, "appConfig", "main"));
@@ -254,7 +274,7 @@ async function loadAppConfig() {
     let data = await resolveConfigData();
 
     if (!data) {
-      await saveSettings(activeSettingsId, {
+      const defaultPayload = {
         shopName: "Shop",
         shopAddress: "",
         shopPhone: "",
@@ -265,15 +285,23 @@ async function loadAppConfig() {
         enableOffline: true,
         enableExpiration: false,
         expirationAlertDays: 30
-      });
+      };
+      if (isEntitySettingsId(activeSettingsId)) {
+        defaultPayload.subName = "";
+      }
+      await saveSettings(activeSettingsId, defaultPayload);
       data = (await loadSettings(activeSettingsId)).data;
     }
 
+    persistEntitySubName(activeSettingsId, data);
+
     const scopeLabel = document.getElementById("configScopeLabel");
     if (scopeLabel) {
-      scopeLabel.textContent = activeSettingsId === getGlobalSettingsId()
-        ? "Configuration globale (main_config)"
-        : `Configuration entité (${activeSettingsId})`;
+      if (activeSettingsId === getGlobalSettingsId()) {
+        scopeLabel.textContent = "Configuration Générale (main_config) — admin général";
+      } else {
+        scopeLabel.textContent = `Configuration Entité (${activeSettingsId}) — admin entité`;
+      }
     }
 
     /* =========================
@@ -311,6 +339,9 @@ async function loadAppConfig() {
       <label>Nom boutique</label>
       <input id="cfg_shopName" type="text">
 
+      <label id="cfg_subNameLabel">Nom court entité (italique header)</label>
+      <input id="cfg_subName" type="text" maxlength="24">
+
       <label>Adresse</label>
       <input id="cfg_shopAddress" type="text">
 
@@ -321,10 +352,10 @@ async function loadAppConfig() {
       <input id="cfg_logoUrl" type="text">
 
       <label>Devise (verrouillée)</label>
-      <input id="cfg_currency" type="text" disabled>
+      <input id="cfg_currency" type="text">
 
       <label>Symbole (verrouillé)</label>
-      <input id="cfg_currencySymbol" type="text" disabled>
+      <input id="cfg_currencySymbol" type="text" maxlength="8">
 
       <label>Stock faible</label>
       <input id="cfg_lowStock" type="number">
@@ -366,12 +397,35 @@ async function loadAppConfig() {
     ========================= */
 
     document.getElementById("cfg_shopName").value = data.shopName || "";
+    document.getElementById("cfg_subName").value = sanitizeSubName(data.subName || "");
     document.getElementById("cfg_shopAddress").value = data.shopAddress || "";
     document.getElementById("cfg_shopPhone").value = data.shopPhone || "";
     document.getElementById("cfg_logoUrl").value = data.logoUrl || "";
 
     document.getElementById("cfg_currency").value = data.currency || "";
     document.getElementById("cfg_currencySymbol").value = data.currencySymbol || "";
+
+    const isEntityScope = isEntitySettingsId(activeSettingsId);
+    const hasEntityCurrency = Boolean(sanitizeText(data.currency) && sanitizeText(data.currencySymbol));
+    const currencyLocked = isEntityScope && hasEntityCurrency;
+
+    const subNameLabel = document.getElementById("cfg_subNameLabel");
+    const subNameInput = document.getElementById("cfg_subName");
+    if (subNameLabel) {
+      subNameLabel.style.display = isEntityScope ? "block" : "none";
+    }
+    if (subNameInput) {
+      subNameInput.style.display = isEntityScope ? "block" : "none";
+    }
+
+    const currencyInput = document.getElementById("cfg_currency");
+    const currencySymbolInput = document.getElementById("cfg_currencySymbol");
+    if (currencyInput) {
+      currencyInput.disabled = currencyLocked;
+    }
+    if (currencySymbolInput) {
+      currencySymbolInput.disabled = currencyLocked;
+    }
 
     document.getElementById("cfg_lowStock").value = data.lowStockLimit ?? 10;
     document.getElementById("cfg_offline").checked = !!data.enableOffline;
@@ -423,9 +477,24 @@ async function loadAppConfig() {
     ========================= */
 
     const shopName = document.getElementById("cfg_shopName").value.trim();
+    const subName = sanitizeSubName(document.getElementById("cfg_subName")?.value || "");
     const shopAddress = document.getElementById("cfg_shopAddress").value.trim();
     const shopPhone = document.getElementById("cfg_shopPhone").value.trim();
     const logoUrl = document.getElementById("cfg_logoUrl").value.trim();
+
+    const currencyInputValue = sanitizeText(document.getElementById("cfg_currency")?.value || "", 40);
+    const currencySymbolInputValue = sanitizeText(document.getElementById("cfg_currencySymbol")?.value || "", 8);
+    const isEntityScope = isEntitySettingsId(activeSettingsId);
+
+    if (isEntityScope && !subName) {
+      showMessage("Nom court entité requis");
+      return;
+    }
+
+    if (isEntityScope && (!currencyInputValue || !currencySymbolInputValue) && (!data.currency || !data.currencySymbol)) {
+      showMessage("Devise entité requise (une seule configuration)");
+      return;
+    }
 
     const lowStockLimit = Number(document.getElementById("cfg_lowStock").value || 0);
     const enableOffline = document.getElementById("cfg_offline").checked;
@@ -440,7 +509,7 @@ async function loadAppConfig() {
        (currency LOCKED)
     ========================= */
 
-    await saveSettings(activeSettingsId, {
+    const payload = {
       shopName,
       shopAddress,
       shopPhone,
@@ -451,7 +520,19 @@ async function loadAppConfig() {
       expirationAlertDays,
       currency: data.currency,
       currencySymbol: data.currencySymbol
-    });
+    };
+
+    if (isEntityScope) {
+      payload.subName = subName;
+      if (!sanitizeText(data.currency) || !sanitizeText(data.currencySymbol)) {
+        payload.currency = currencyInputValue;
+        payload.currencySymbol = currencySymbolInputValue;
+      }
+    } else {
+      payload.subName = "";
+    }
+
+    await saveSettings(activeSettingsId, payload);
 
     await writeLog({
       userId: currentUserId,
@@ -459,6 +540,7 @@ async function loadAppConfig() {
       targetId: activeSettingsId,
       details: {
         shopName,
+        subName: payload.subName || null,
         enableOffline,
         enableExpiration,
         expirationAlertDays
@@ -501,7 +583,10 @@ function initLockModeUI() {
 async function loadEntitySettingsSelector() {
   const wrap = document.getElementById("entitySettingsSelectWrap");
   const select = document.getElementById("entitySettingsSelect");
-  if (!wrap || !select || !isMasterAdmin()) {
+  if (!wrap || !select || adminMode !== "general") {
+    if (wrap) {
+      wrap.classList.add("field-hidden");
+    }
     return;
   }
 
@@ -563,6 +648,13 @@ onAuthStateChanged(auth, async (user) => {
     const userData =
       userSnap.data();
 
+    const ctx = getEntityContext();
+    const entitySettingsId = getEntitySettingsId(ctx.entityId);
+    adminMode = isMasterAdmin() ? "general" : "entity";
+    activeSettingsId = adminMode === "general"
+      ? getGlobalSettingsId()
+      : entitySettingsId;
+
     const permissions = await loadUserPermissions(currentUserId);
     const canManageSettings = canAccessAdmin(permissions)
       || hasScope("scope_settings", permissions);
@@ -600,6 +692,12 @@ onAuthStateChanged(auth, async (user) => {
     await loadEntitySettingsSelector();
 
     if (!canAccessAdmin(permissions)) {
+      document.getElementById("usersSection")?.remove();
+      await loadAppConfig();
+      return;
+    }
+
+    if (adminMode === "entity") {
       document.getElementById("usersSection")?.remove();
       await loadAppConfig();
       return;

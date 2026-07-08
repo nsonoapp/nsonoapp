@@ -79,6 +79,61 @@ header .nsono-page-title {
 
 ensureHeaderTitleLayout();
 
+function sanitizeSubName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 24);
+}
+
+function shouldDisplaySubName() {
+  return currentPage === "index.html" || currentPage === "settings.html";
+}
+
+function ensureHeaderSubName() {
+  if (!shouldDisplaySubName()) {
+    return;
+  }
+
+  const header = document.querySelector("header");
+  const heading = header?.querySelector("h1, h2, h3");
+  if (!header || !heading) {
+    return;
+  }
+
+  const rawSubName = localStorage.getItem("nsono_entitySubName");
+  const subName = sanitizeSubName(rawSubName);
+  if (!subName) {
+    return;
+  }
+
+  if (!document.getElementById("nsonoHeaderSubNameStyle")) {
+    const style = document.createElement("style");
+    style.id = "nsonoHeaderSubNameStyle";
+    style.textContent = `
+header .nsono-subname {
+  margin-left: 8px;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 400;
+  opacity: 0.9;
+}`;
+    document.head.appendChild(style);
+  }
+
+  let subNameEl = document.getElementById("nsonoHeaderSubName");
+  if (!subNameEl) {
+    subNameEl = document.createElement("span");
+    subNameEl.id = "nsonoHeaderSubName";
+    subNameEl.className = "nsono-subname";
+    heading.appendChild(subNameEl);
+  }
+
+  subNameEl.textContent = `(${subName})`;
+}
+
+ensureHeaderSubName();
+
 function applyRoleVisibility() {
   const role = localStorage.getItem("userRole");
   if (role === "admin") {

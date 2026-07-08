@@ -313,24 +313,9 @@ async function checkAccess(uid) {
 
   currentUser = { id: userSnap.id, ...userSnap.data() };
 
-  if (
-    currentUser.role !== "admin" &&
-    currentUser.role !== "seller"
-  ) {
+  if (currentUser.role !== "admin") {
     location.replace("404.html");
     return;
-  }
-
-  if (currentUser.role === "seller") {
-    const ownId =
-      currentUser.userId ||
-      currentUser.uid ||
-      currentUser.id;
-    const sellerFilter = $("sellerFilter");
-    if (sellerFilter) {
-      sellerFilter.value = ownId;
-      sellerFilter.disabled = true;
-    }
   }
 
   bindEvents();
