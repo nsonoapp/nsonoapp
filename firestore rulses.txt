@@ -1,14 +1,33 @@
-// NSONO — règles Firestore (générales)
-// Prérequis manuel : system/meta → { usersCount: 0, maxUsers: 5 }
-// Déployer : Firebase Console → Firestore → Règles → Publier
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Helpers rapides (sans get) ─────────────────────────────
     function signedIn() {
       return request.auth != null;
+    }
+
+    function validUserRole(role) {
+      return role in ['admin', 'seller', 'user'];
+    }
+
+    function validBusinessRole(role) {
+      return role in ['admin', 'seller'];
+    }
+
+    // ── get() UNIQUEMENT ici (users / meta / admin) ────────────
+    function metaDoc() {
+      return get(/databases/$(database)/documents/system/meta);
+    }
+
+    function metaExists() {
+      return exists(/databases/$(database)/documents/system/meta);
+    }
+
+    function underUserLimit() {
+      return metaExists()
+        && metaDoc().data.usersCount < metaDoc().data.maxUsers;
     }
 
     function isAdmin() {
@@ -16,13 +35,61 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    function underUserLimit() {
-      return exists(/databases/$(database)/documents/system/meta)
-        && get(/databases/$(database)/documents/system/meta).data.usersCount
-           < get(/databases/$(database)/documents/system/meta).data.maxUsers;
+    function isActiveMember() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approvalStatus == 'approved'
+        && validBusinessRole(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role);
     }
 
-    // ── Limite 5 users ─────────────────────────────────────────
+    function companyExists() {
+      return exists(/databases/$(database)/documents/companies/main);
+    }
+
+    function validCompanyLink() {
+      return !request.resource.data.keys().hasAny(['companyId'])
+        || request.resource.data.companyId == null
+        || (
+          request.resource.data.companyId == 'main'
+          && companyExists()
+        );
+    }
+
+    function userBelongsToCompany() {
+      return !resource.data.keys().hasAny(['companyId'])
+        || resource.data.companyId == null
+        || !request.resource.data.keys().hasAny(['companyId'])
+        || request.resource.data.companyId == resource.data.companyId;
+    }
+
+    function isMasterOfCompany(companyId) {
+      return companyId == 'main'
+        && companyExists()
+        && (
+          get(/databases/$(database)/documents/companies/main).data.masterAdminId == request.auth.uid
+          || (
+            get(/databases/$(database)/documents/companies/main).data.masterAdminIds is list
+            && request.auth.uid in get(/databases/$(database)/documents/companies/main).data.masterAdminIds
+          )
+        );
+    }
+
+    function validUserCreate() {
+      return request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'name', 'role', 'isActive', 'createdAt'])
+        && validUserRole(request.resource.data.role)
+        && request.resource.data.isActive is bool
+        && validCompanyLink();
+    }
+
+    function validMasterAdminList(data) {
+      return data.keys().hasAny(['masterAdminIds'])
+        && data.masterAdminIds is list
+        && data.masterAdminIds.size() > 0
+        && data.masterAdminIds.size() <= 5;
+    }
+    // Créer une fois dans la console :
+    // system/meta → { usersCount: 0, maxUsers: 5 }
     match /system/meta {
       allow read: if signedIn();
 
@@ -32,6 +99,8 @@ service cloud.firestore {
 
       allow update: if signedIn()
         && request.resource.data.maxUsers == 5
+        && request.resource.data.usersCount >= 0
+        && request.resource.data.usersCount <= 5
         && (
           request.resource.data.usersCount == resource.data.usersCount + 1
           || request.resource.data.usersCount == resource.data.usersCount - 1
@@ -39,46 +108,176 @@ service cloud.firestore {
         );
     }
 
-    // ── Users (signup.js crée le doc — rôle géré par le JS) ────
+    // ── Users ──────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (request.auth.uid == userId || isActiveMember());
 
+      // Création : max 5 users (1 seul get meta, pas sur les autres collections)
       allow create: if signedIn()
         && request.auth.uid == userId
-        && underUserLimit();
+        && underUserLimit()
+        && validUserCreate();
 
-      allow update: if signedIn()
-        && (request.auth.uid == userId || isAdmin());
+      allow update: if signedIn() && (
+        (request.auth.uid == userId
+          && request.resource.data.role == resource.data.role
+          && userBelongsToCompany())
+        || isAdmin()
+      );
 
       allow delete: if isAdmin();
     }
 
-    // ── Collections métier ─────────────────────────────────────
-    match /products/{id}         { allow read, write: if signedIn(); }
-    match /sales/{id}            { allow read, write: if signedIn(); }
-    match /sale_items/{id}       { allow read, write: if signedIn(); }
-    match /stock_movements/{id}  { allow read, write: if signedIn(); }
-    match /purchases/{id}        { allow read, write: if signedIn(); }
-    match /purchase_items/{id}   { allow read, write: if signedIn(); }
-    match /expenses/{id}         { allow read, write: if signedIn(); }
-    match /debts/{id}            { allow read, write: if signedIn(); }
-    match /losses/{id}           { allow read, write: if signedIn(); }
-    match /logs/{id}             { allow read, write: if signedIn(); }
+    // ── Collections métier — auth seulement = rapide, 0 get ────
+    match /products/{id} {
+      allow read, write: if isActiveMember();
+    }
 
-    // ── Config (écriture admin) ────────────────────────────────
+    match /sales/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /sale_items/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /stock_movements/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /purchases/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /purchase_items/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /expenses/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /debts/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /losses/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /logs/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    // ── Config — lecture rapide, écriture admin ────────────────
     match /appConfig/{id} {
-      allow read: if signedIn();
+      allow read: if isActiveMember();
       allow write: if isAdmin();
     }
 
     match /settings/{id} {
-      allow read: if signedIn();
+      allow read: if isActiveMember();
       allow write: if isAdmin();
     }
 
-    // ── Sous-collections (ne bloque pas products/{id}/...) ───────
-    match /{col}/{docId}/{path=**} {
-      allow read, write: if signedIn();
+    // ── Module Batch (isolé) ───────────────────────────────────
+    match /batch_products/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /product_batches/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    match /batch_movements/{id} {
+      allow read, write: if isActiveMember();
+    }
+
+    // ── NSONO — une seule société par base (companies/main) ────
+    match /companies/{id} {
+      allow read: if isActiveMember();
+      allow create: if signedIn()
+        && id == 'main'
+        && !companyExists()
+        && validMasterAdminList(request.resource.data);
+      allow update: if id == 'main' && (
+        (
+          isAdmin()
+          || resource.data.masterAdminId == request.auth.uid
+        )
+        && validMasterAdminList(request.resource.data)
+      );
+      allow delete: if false;
+    }
+
+    match /entities/{id} {
+      allow read: if isActiveMember();
+      allow create: if signedIn()
+        && companyExists()
+        && request.resource.data.companyId == 'main';
+      allow update, delete: if isAdmin()
+        && resource.data.companyId == 'main';
+    }
+
+    match /roles/{id} {
+      allow read: if isActiveMember();
+      allow create: if isAdmin()
+        && request.resource.data.companyId == 'main';
+      allow update: if isAdmin()
+        && resource.data.companyId == 'main'
+        && request.resource.data.companyId == 'main';
+      allow delete: if isAdmin()
+        && resource.data.companyId == 'main';
+    }
+
+    // ── Secret société — jamais lisible côté client ────────────
+    match /company_secrets/{companyId} {
+      allow read: if false;
+      allow create: if signedIn()
+        && companyId == 'main'
+        && request.resource.data.companyId == 'main'
+        && request.resource.data.keys().hasAll(['companyId', 'passwordHash', 'updatedAt'])
+        && !exists(/databases/$(database)/documents/company_secrets/main);
+      allow update: if companyId == 'main' && (isAdmin() || isMasterOfCompany('main'));
+      allow delete: if false;
+    }
+
+    match /entity_secrets/{entityId} {
+      allow read: if false;
+      allow create: if signedIn()
+        && request.resource.data.entityId == entityId
+        && request.resource.data.companyId == 'main'
+        && request.resource.data.keys().hasAll(['companyId', 'entityId', 'passwordHash', 'updatedAt'])
+        && !exists(/databases/$(database)/documents/entity_secrets/$(entityId));
+      allow update: if isAdmin() || isMasterOfCompany('main');
+      allow delete: if false;
+    }
+
+    // ── Sonde auth — compare hash sans exposer company_secrets ─
+    match /company_auth_probes/{probeId} {
+      allow read: if false;
+      allow create: if signedIn()
+        && request.resource.data.companyId == 'main'
+        && request.resource.data.passwordHash is string
+        && request.resource.data.uid == request.auth.uid
+        && exists(/databases/$(database)/documents/company_secrets/main)
+        && get(/databases/$(database)/documents/company_secrets/main).data.passwordHash
+           == request.resource.data.passwordHash;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /entity_auth_probes/{probeId} {
+      allow read: if false;
+      allow create: if signedIn()
+        && request.resource.data.entityId is string
+        && request.resource.data.passwordHash is string
+        && request.resource.data.uid == request.auth.uid
+        && exists(/databases/$(database)/documents/entity_secrets/$(request.resource.data.entityId))
+        && get(/databases/$(database)/documents/entity_secrets/$(request.resource.data.entityId)).data.passwordHash
+           == request.resource.data.passwordHash;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
     }
   }
 }

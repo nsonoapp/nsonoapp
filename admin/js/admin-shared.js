@@ -74,7 +74,7 @@ export function guardAdminPage(requiredScope = null) {
         const permissions = await loadUserPermissions(user.uid);
 
         if (!canAccessAdmin(permissions)) {
-          location.href = "../pages.html";
+          location.href = "../index.html";
           return;
         }
 

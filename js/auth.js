@@ -27,6 +27,8 @@ import {
 
 const auth = getFirebaseAuth(app);
 const PUBLIC_PAGES = new Set(["login.html", "signup.html", "waiting.html", "404.html"]);
+const ADMIN_ONLY_PAGES = new Set(["stats.html", "admin.html", "entities.html", "roles.html", "approvals.html", "onboarding.html"]);
+const MASTER_ONLY_PAGES = new Set(["admin/stats.html"]);
 let authGuardStarted = false;
 
 export function getAuth() {
@@ -39,6 +41,10 @@ function currentPageName() {
 
 function isPublicPage(page) {
   return PUBLIC_PAGES.has(page);
+}
+
+function currentPath() {
+  return window.location.pathname.replace(/^\//, "");
 }
 
 function isApprovedProfile(profile) {
@@ -67,6 +73,7 @@ function startAuthGuard() {
 
   onAuthStateChanged(auth, async user => {
     const page = currentPageName();
+    const path = currentPath();
     const publicPage = isPublicPage(page);
 
     if (!user) {
@@ -98,6 +105,16 @@ function startAuthGuard() {
 
     if (!allowedBusinessAccess && !publicPage) {
       redirectTo("waiting.html");
+      return;
+    }
+
+    if (ADMIN_ONLY_PAGES.has(page) && profile?.role !== "admin") {
+      redirectTo("index.html");
+      return;
+    }
+
+    if (MASTER_ONLY_PAGES.has(path) && profile?.role !== "admin") {
+      redirectTo("admin/admin.html");
     }
   });
 }

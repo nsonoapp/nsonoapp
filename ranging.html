@@ -17,6 +17,7 @@ form-action 'self';
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>NSONO - Ranking</title>
+<link rel="stylesheet" href="css/drawer.css">
 
 <style>
 *{
@@ -39,50 +40,72 @@ body{
     100px;
 }
 
-/* HEADER */
-
-.header{
-  margin-bottom:25px;
+header{
+  background:#0B3D2E;
+  color:white;
+  padding:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:-20px -15px 16px;
 }
 
-.header h1{
-  font-size:28px;
-  margin-bottom:6px;
-
-  background:
-    linear-gradient(
-      90deg,
-      #ffd700,
-      #fff3b0,
-      #ffd700
-    );
-
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-
-  animation:
-    goldFlow 3s linear infinite;
+header h3{
+  margin:0;
 }
 
-.header p{
-  color:#aaa;
+header .status{
+  font-size:12px;
+  color:#D4AF37;
+}
+
+.toolbar{
+  display:flex;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.toolbar select{
+  flex:1;
+  min-width:0;
+  border:none;
+  border-radius:10px;
+  padding:10px;
+  background:#1b1b1b;
+  color:#fff;
   font-size:13px;
 }
 
-@keyframes goldFlow{
+.kpi-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  margin-bottom:20px;
+}
 
-  0%{
-    filter:brightness(1);
-  }
+.kpi-card{
+  background:#151515;
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:14px;
+  padding:12px;
+}
 
-  50%{
-    filter:brightness(1.35);
-  }
+.kpi-title{
+  color:#aaa;
+  font-size:12px;
+  margin-bottom:6px;
+}
 
-  100%{
-    filter:brightness(1);
-  }
+.kpi-value{
+  font-weight:700;
+  font-size:15px;
+  color:#fff;
+}
 
+.kpi-sub{
+  font-size:12px;
+  color:#ccc;
+  margin-top:3px;
 }
 
 /* SECTION */
@@ -387,13 +410,36 @@ nav .nav-item.active{
 
 <body>
 
-<div class="header">
-  <h1>🏆 NSONO Ranking</h1>
-  <p>
-    Classement intelligent des produits
-    les plus performants. - depuis récemment 
-  </p>
+<header>
+  <h3>NSONO - Ranking</h3>
+  <div class="status" id="status">● Online</div>
+</header>
+
+<div class="toolbar">
+  <select id="rangeFilter" aria-label="Filtre période ranking">
+    <option value="today">Aujourd'hui</option>
+    <option value="7days" selected>7 jours</option>
+    <option value="30days">30 jours</option>
+  </select>
 </div>
+
+<section class="kpi-grid" aria-live="polite">
+  <div class="kpi-card">
+    <div class="kpi-title">Top CA</div>
+    <div class="kpi-value" id="kpiTopCaValue">—</div>
+    <div class="kpi-sub" id="kpiTopCaSub">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-title">Top profit</div>
+    <div class="kpi-value" id="kpiTopProfitValue">—</div>
+    <div class="kpi-sub" id="kpiTopProfitSub">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-title">Produit à risque</div>
+    <div class="kpi-value" id="kpiRiskValue">—</div>
+    <div class="kpi-sub" id="kpiRiskSub">—</div>
+  </div>
+</section>
 
 <!-- TOP PRODUCTS -->
 
@@ -428,27 +474,28 @@ nav .nav-item.active{
 </section>
 
 <nav>
-  <a class="nav-item" href="index.html">
+  <a class="nav-item" data-page="index.html" href="index.html">
     🛒 Vente
   </a>
 
-  <a class="nav-item" href="products.html">
+  <a class="nav-item" data-page="products.html" href="products.html">
     📦 Produits
   </a>
 
-  <a class="nav-item active" href="ranking.html">
+  <a class="nav-item active" data-page="ranging.html" href="ranging.html">
     🏆 Ranking
   </a>
 
-  <a class="nav-item" href="stats.html">
+  <a class="nav-item" data-page="stats.html" href="stats.html">
     📊 Stats
   </a>
 
-  <a class="nav-item" href="pages.html">
-    🔗 navigation 
+  <a class="nav-item" data-page="finances.html" href="finances.html">
+    💰 Finances
   </a>
 </nav>
 
+<script src="js/nav.js"></script>
 <script type="module" src="js/ranging.js"></script>
 
 </body>

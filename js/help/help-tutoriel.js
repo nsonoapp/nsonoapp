@@ -100,12 +100,12 @@ export const HELP_TUTORIALS = [
   },
   {
     id: "navigation",
-    title: "Navigation (Menu)",
-    page: "pages.html",
-    role: "Accéder rapidement à toutes les pages du système depuis un seul écran.",
-    howTo: "Ouvrez pages.html depuis le lien Navigation ou le menu ☰ selon votre page d'accueil.",
-    todo: "Utiliser ce hub pour former les nouveaux utilisateurs et vérifier que chaque module est accessible.",
-    body: "La grille liste Vente, Produits, Vendus, Achats, Finances, Stats, Paramètres, Aide et Vue rapide. Idéal pour les administrateurs qui supervisent plusieurs modules."
+    title: "Navigation (Sidebar)",
+    page: "index.html",
+    role: "Accéder aux modules via le tiroir persistant et filtré par rôle.",
+    howTo: "Sur desktop/tablette, utilisez la sidebar fixe à gauche. Sur mobile, ouvrez-la avec le bouton ☰.",
+    todo: "Vérifier que les liens Admin/Stats ne s'affichent que pour les admins autorisés.",
+    body: "La navigation est centralisée dans le tiroir. Les liens sont dynamiques selon les permissions."
   },
   {
     id: "loader",

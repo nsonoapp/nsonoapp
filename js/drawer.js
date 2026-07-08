@@ -5,18 +5,22 @@ import { isMasterAdmin } from "../admin/js/entity-context.js";
 const NAV_ITEMS = [
   { href: "index.html", label: "🛒 Vente", section: "metier" },
   { href: "products.html", label: "📦 Produits", section: "metier" },
+  { href: "ranging.html", label: "🏆 Ranking", section: "metier" },
   { href: "purchases.html", label: "📥 Achats", section: "metier" },
   { href: "vendus.html", label: "📋 Vendus", section: "metier" },
   { href: "finances.html", label: "💰 Finances", section: "metier" },
-  { href: "stats.html", label: "📊 Stats boutique", section: "metier" },
+  { href: "expenses.html", label: "💸 Depenses", section: "metier" },
+  { href: "debts.html", label: "🧾 Dettes", section: "metier" },
+  { href: "losses.html", label: "📉 Pertes", section: "metier" },
   { href: "loader.html", label: "📩 Vue rapide", section: "metier" },
-  { href: "pages.html", label: "📂 Menu complet", section: "systeme" },
-  { href: "help.html", label: "🤝 Aide", section: "systeme" }
+  { href: "help.html", label: "🤝 Aide", section: "systeme" },
+  { href: "login.html", label: "🔐 Connexion", section: "systeme" }
 ];
 
 const ADMIN_ITEMS = [
   { href: "admin/admin.html", label: "⚙️ Administration", admin: true },
   { href: "admin/settings.html", label: "🔧 Paramètres", admin: true },
+  { href: "stats.html", label: "📊 Stats societe", admin: true },
   { href: "admin/stats.html", label: "📈 Stats globales", master: true },
   { href: "batch/batch_management.html", label: "📦 Lots", admin: true }
 ];

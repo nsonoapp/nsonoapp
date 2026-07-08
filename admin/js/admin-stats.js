@@ -12,7 +12,7 @@ onAuthStateChanged(auth, async (user) => {
 
   const permissions = await loadUserPermissions(user.uid);
   if (!isMasterAdmin() || !canAccessAdmin(permissions)) {
-    location.replace("../pages.html");
+    location.replace("../index.html");
     return;
   }
 

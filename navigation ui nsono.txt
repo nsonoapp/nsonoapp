@@ -1,19 +1,4 @@
+Ajouter le lien ranging.html dans la section métier du tiroir. Corriger la nav du bas (il y a une incohérence actuelle). Aligner le nom de page : ranging.html . Ajouter un petit header standard (même structure que les autres pages : titre + status). Performance
 
-"Agis comme un architecte logiciel senior. Nous basculons d'une structure de 'boutique' vers une architecture de 'plateforme métier sécurisée'. Applique les directives strictes suivantes :
-**1. Refonte du Layout et Navigation (Tiroir/Sidebar) :**
- * **Suppression de pages.html :** Cette page est obsolète. Remplace-la intégralement par un composant Sidebar (tiroir de navigation) persistant.
- * **Comportement Responsif :** * **Desktop/Tablette :** Le tiroir doit être ancré, visible en permanence sur la gauche. Il ne doit pas être rétractable ou caché par défaut.
-   * **Mobile :** Le tiroir doit être accessible via le menu hamburger.
- * **Contenu du Tiroir :** Le tiroir est actuellement vide. Complète-le avec l'ensemble des liens de navigation de l'application.
- * **Visibilité Dynamique :** Les liens doivent être générés dynamiquement en fonction du rôle utilisateur. Les liens vers les pages Admin ne doivent même pas apparaître dans le tiroir pour un employé standard.
-**2. Sécurisation des Accès et Visibilité (Role-Based Access Control) :**
- * **Séparation des Rôles :** Sépare strictement les permissions entre Admin Master (général) et Admin Entité (local).
- * **Accès aux Statistiques :** Les statistiques de la société sont strictement réservées aux administrateurs. Un employé ne doit sous aucun prétexte avoir accès aux dashboards de statistiques. Cette logique doit être appliquée à la fois dans le rendu UI (masquage) et dans les règles d'accès aux données.
- * **Protection des Routes :** Tout lien vers une page Admin doit être protégé par un middleware. Si l'utilisateur n'a pas les privilèges requis, l'accès doit être interdit, indépendamment de la visibilité du lien.
-**3. Philosophie de Développement (App métier vs Boutique) :**
- * Arrête toute logique orientée 'boutique'. Nous concevons une application de gestion de société.
- * Le flux de données, la hiérarchie des vues et les interactions doivent refléter une application professionnelle où la sécurité et la séparation des rôles priment sur l'expérience utilisateur de type 'achat'.
-**Instructions techniques :**
- * Refactorise le code pour que la navigation soit centralisée dans le composant Sidebar.
- * Assure-toi que la logique de rendu conditionnel (if user.role === 'admin') est appliquée rigoureusement pour l'affichage des éléments du tiroir.
- * Optimise le CSS pour que le tiroir fixe sur desktop n'empiète pas sur le contenu principal."
+Limiter les listes à top 10 / low 10.
+Éviter re-render complet si seuls les filtres changent. Ajouter filtres période (today, 7days, 30days) pour ranking exploitable.

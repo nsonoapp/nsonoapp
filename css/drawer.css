@@ -135,4 +135,8 @@
   body.nsono-drawer-desktop {
     padding-left: var(--drawer-width);
   }
+
+  .bottom-nav {
+    display: none !important;
+  }
 }

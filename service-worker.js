@@ -19,7 +19,6 @@ const CORE_ASSETS = [
   "/debts.html",
   "/losses.html",
   "/expensess.html",
-  "/pages.html",
   "/login.html",
   "/signup.html",
   "/help.html",
