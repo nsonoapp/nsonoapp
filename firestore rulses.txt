@@ -42,6 +42,45 @@ service cloud.firestore {
         && validBusinessRole(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role);
     }
 
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasScopedCompany(data) {
+      return !data.keys().hasAny(['companyId'])
+        || data.companyId == null
+        || (
+          currentUserDoc().data.companyId is string
+          && data.companyId == currentUserDoc().data.companyId
+        )
+        || (
+          data.companyId == 'main'
+          && isMasterOfCompany('main')
+        );
+    }
+
+    function hasScopedEntity(data) {
+      return !data.keys().hasAny(['entityId'])
+        || data.entityId == null
+        || isMasterOfCompany('main')
+        || (
+          currentUserDoc().data.entityId is string
+          && data.entityId == currentUserDoc().data.entityId
+        );
+    }
+
+    function canReadBusinessDoc(data) {
+      return isActiveMember()
+        && hasScopedCompany(data)
+        && hasScopedEntity(data);
+    }
+
+    function canWriteBusinessDoc(data) {
+      return isActiveMember()
+        && hasScopedCompany(data)
+        && hasScopedEntity(data);
+    }
+
     function companyExists() {
       return exists(/databases/$(database)/documents/companies/main);
     }
@@ -136,43 +175,64 @@ service cloud.firestore {
 
     // ── Collections métier — auth seulement = rapide, 0 get ────
     match /products/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /sales/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /sale_items/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /stock_movements/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /purchases/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /purchase_items/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /expenses/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /debts/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /losses/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     match /logs/{id} {
-      allow read, write: if isActiveMember();
+      allow read: if canReadBusinessDoc(resource.data)
+        && validBusinessRole(currentUserDoc().data.role);
+      allow create, update: if canWriteBusinessDoc(request.resource.data);
+      allow delete: if canWriteBusinessDoc(resource.data);
     }
 
     // ── Config — lecture rapide, écriture admin ────────────────
@@ -188,7 +248,8 @@ service cloud.firestore {
 
     // ── NSONO — une seule société par base (companies/main) ────
     match /companies/{id} {
-      allow read: if isActiveMember();
+      // Requis pour le flux signup/login après Auth Firebase
+      allow read: if signedIn();
       allow create: if signedIn()
         && id == 'main'
         && !companyExists()
@@ -204,7 +265,8 @@ service cloud.firestore {
     }
 
     match /entities/{id} {
-      allow read: if isActiveMember();
+      // Requis pour résolution entité durant signup/login
+      allow read: if signedIn();
       allow create: if signedIn()
         && companyExists()
         && request.resource.data.companyId == 'main';

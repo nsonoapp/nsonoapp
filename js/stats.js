@@ -270,6 +270,10 @@ async function loadData() {
     const recentStockQuery = buildRecentListQuery("stock_movements");
     const openDebtsQuery = buildOpenDebtsQuery(false);
     const recentDebtsQuery = buildOpenDebtsQuery(true);
+    const scopedProductsQuery = query(collection(db, "products"), ...applyEntityScope([]));
+    const scopedUsersQuery = query(collection(db, "users"), ...applyEntityScope([]));
+    const scopedSaleItemsQuery = query(collection(db, "sale_items"), ...applyEntityScope([]));
+    const scopedPurchaseItemsQuery = query(collection(db, "purchase_items"), ...applyEntityScope([]));
 
     const [
       salesSnap,
@@ -291,14 +295,14 @@ async function loadData() {
       getDocs(openDebtsQuery),
       getDocs(recentDebtsQuery),
       getDocs(lossesQuery),
-      getDocs(collection(db, "products")),
-      getDocs(collection(db, "users")),
+      getDocs(scopedProductsQuery),
+      getDocs(scopedUsersQuery),
       getDocs(stockQuery),
       getDocs(recentStockQuery),
-      getDocs(collection(db, "sale_items")),
+      getDocs(scopedSaleItemsQuery),
       getDocs(purchasesQuery),
       getDocs(recentPurchasesQuery),
-      getDocs(collection(db, "purchase_items"))
+      getDocs(scopedPurchaseItemsQuery)
     ]);
 
     state.sales = salesSnap.docs.map(d => ({ id: d.id, ...d.data() }));

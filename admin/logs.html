@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com;">
+<title>NSONO - Logs globaux</title>
+<link rel="stylesheet" href="css/admin.css">
+<script src="../js/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <h3>NSONO — Logs globaux</h3>
+  <div class="status" id="status">● Online</div>
+</header>
+
+<div class="container">
+  <a class="back-link" href="admin.html">← Retour Admin</a>
+
+  <div class="form-box">
+    <h3>Filtres logs</h3>
+    <div class="form-grid">
+      <div>
+        <label for="adminLogsPageSize">Lecture par requête</label>
+        <select id="adminLogsPageSize">
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div>
+        <label for="adminEntityFilter">Entité</label>
+        <select id="adminEntityFilter">
+          <option value="all">Toutes les entités</option>
+        </select>
+      </div>
+      <div>
+        <label for="adminLogAction">Action</label>
+        <input type="text" id="adminLogAction" placeholder="ex: purchase_create">
+      </div>
+      <div>
+        <label for="adminLogUser">UserId</label>
+        <input type="text" id="adminLogUser" placeholder="UID">
+      </div>
+      <div>
+        <label for="adminLogStart">Date début</label>
+        <input type="date" id="adminLogStart">
+      </div>
+      <div>
+        <label for="adminLogEnd">Date fin</label>
+        <input type="date" id="adminLogEnd">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="modal-save" id="adminApplyLogFilters">Appliquer</button>
+      <button type="button" class="modal-cancel" id="adminLoadMoreLogs">Charger plus</button>
+    </div>
+  </div>
+
+  <div class="list" id="adminLogsList"></div>
+</div>
+
+<script type="module" src="../js/drawer.js"></script>
+<script type="module" src="js/admin-logs.js"></script>
+</body>
+</html>

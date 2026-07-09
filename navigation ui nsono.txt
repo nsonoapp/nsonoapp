@@ -1,4 +1,0 @@
-Ajouter le lien ranging.html dans la section métier du tiroir. Corriger la nav du bas (il y a une incohérence actuelle). Aligner le nom de page : ranging.html . Ajouter un petit header standard (même structure que les autres pages : titre + status). Performance
-
-Limiter les listes à top 10 / low 10.
-Éviter re-render complet si seuls les filtres changent. Ajouter filtres période (today, 7days, 30days) pour ranking exploitable.

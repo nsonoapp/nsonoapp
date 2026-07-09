@@ -2,6 +2,8 @@ import {
   db,
   collection,
   getDocs,
+  query,
+  where,
   doc,
   updateDoc,
   Timestamp,
@@ -10,7 +12,7 @@ import {
 import { getAuth, onAuthStateChanged } from "./auth.js";
 import { bindActionButton } from "./utils/buttonManager.js";
 import { loadUserPermissions, hasScope } from "../admin/js/permissions.js";
-import { withEntityScope } from "./nsono-scope.js";
+import { withEntityScope, getEntityContext } from "./nsono-scope.js";
 
 const auth = getAuth();
 let currentUserId = null;
@@ -144,7 +146,18 @@ async function loadTools() {
 }
 
 async function loadUsers() {
-  const snap = await getDocs(collection(db, "users"));
+  const ctx = getEntityContext();
+  const constraints = [];
+  if (ctx.companyId) {
+    constraints.push(where("companyId", "==", ctx.companyId));
+  }
+  if (!ctx.isMasterAdmin && ctx.entityId) {
+    constraints.push(where("entityId", "==", ctx.entityId));
+  }
+
+  const usersRef = collection(db, "users");
+  const usersQuery = constraints.length ? query(usersRef, ...constraints) : usersRef;
+  const snap = await getDocs(usersQuery);
   allUsers = snap.docs
     .map(d => ({ id: d.id, ...d.data() }))
     .filter(u => u.isActive && u.approvalStatus === "approved");

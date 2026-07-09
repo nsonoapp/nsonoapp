@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com;">
+<title>NSONO - Logs entité</title>
+<link rel="stylesheet" href="css/finances.css">
+<script src="js/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <h3>NSONO - Logs entité</h3>
+  <div class="status" id="status">● Online</div>
+</header>
+
+<div class="container">
+  <a class="back-link" href="index.html">← Retour</a>
+
+  <div class="form-box filters-box">
+    <h3>Filtres logs</h3>
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label for="logsPageSize">Lecture par chargement</label>
+        <select id="logsPageSize">
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="logsStartDate">Date début</label>
+        <input type="date" id="logsStartDate">
+      </div>
+      <div class="filter-group">
+        <label for="logsEndDate">Date fin</label>
+        <input type="date" id="logsEndDate">
+      </div>
+      <div class="filter-group">
+        <label for="logsActionFilter">Action</label>
+        <input type="text" id="logsActionFilter" placeholder="ex: sale_create">
+      </div>
+      <div class="filter-group">
+        <label for="logsUserFilter">Utilisateur</label>
+        <input type="text" id="logsUserFilter" placeholder="UID">
+      </div>
+      <div class="filter-group">
+        <label for="logsSearch">Recherche</label>
+        <input type="text" id="logsSearch" placeholder="texte libre">
+      </div>
+    </div>
+    <div class="filters-actions" style="gap:10px;">
+      <button type="button" class="filter-btn" id="applyLogsFiltersBtn">Appliquer</button>
+      <button type="button" class="filter-btn" id="loadMoreLogsBtn">Charger plus</button>
+    </div>
+  </div>
+
+  <div class="list" id="logsList"></div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item" data-page="index.html">🛒 Vente</a>
+  <a href="products.html" class="nav-item" data-page="products.html">📦 Produits</a>
+  <a href="logs.html" class="nav-item active" data-page="logs.html">🧾 Logs</a>
+  <a href="finances.html" class="nav-item" data-page="finances.html">💰 Finances</a>
+  <a href="stats.html" class="nav-item" data-page="stats.html">📊 Stats</a>
+</nav>
+
+<script type="module" src="js/drawer.js"></script>
+<script type="module" src="js/logs.js"></script>
+</body>
+</html>

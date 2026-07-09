@@ -1,0 +1,14 @@
+ Multitenant et Gestion par Entité
+"Agis comme un expert en architecture SaaS/B2B. Nous devons implémenter une isolation stricte des données entre les entités de la société. Le système actuel ne doit pas permettre de fuite de données entre une entité A et une entité B.
+**1. Isolation des Entités (Multi-tenancy) :**
+ * **Cloisonnement total :** Les données d'une entité A doivent être totalement invisibles pour un utilisateur de l'entité B.
+ * **Architecture de données :** Toutes les requêtes (lectures et écritures) dans Firestore doivent obligatoirement filtrer par entite_id ou company_id. Aucune donnée ne doit être récupérée sans que cette condition de filtrage soit vérifiée.
+ * **Contexte utilisateur :** L'utilisateur est lié à une entité spécifique. Le système doit automatiquement restreindre sa portée de vue uniquement aux documents correspondant à son identifiant d'entité.
+**2. Pages spécifiques aux Entités :**
+ * Les pages de gestion, de stock, et de suivi doivent être générées dynamiquement ou filtrées selon l'entité active.
+ * Si une page est liée à une entité, le système doit rejeter toute tentative d'accès si l'identifiant de l'entité de l'utilisateur ne correspond pas au périmètre de la page.
+**3. Rigueur de développement :**
+ * Ne traite jamais les entités comme un groupe unifié. Chaque entité est un silo de données indépendant.
+ * Dans le code, supprime toute logique qui permettrait une vue globale si l'utilisateur n'a pas les droits Admin Master.
+ * Applique cette logique d'isolation à toutes les fonctions de lecture, d'écriture et de suppression.
+**Objectif :** Garantir que même en cas d'erreur de manipulation, les données d'une entité ne soient jamais exposées à une autre. La sécurité est ici une contrainte structurelle, pas optionnelle."

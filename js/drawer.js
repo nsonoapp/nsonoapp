@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "expenses.html", label: "💸 Depenses", section: "metier" },
   { href: "debts.html", label: "🧾 Dettes", section: "metier" },
   { href: "losses.html", label: "📉 Pertes", section: "metier" },
+  { href: "logs.html", label: "🧾 Logs", section: "metier", scopes: ["scope_admin"] },
   { href: "loader.html", label: "📩 Vue rapide", section: "metier" },
   { href: "help.html", label: "🤝 Aide", section: "systeme" },
   { href: "login.html", label: "🔐 Connexion", section: "systeme" }
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
 const ADMIN_ITEMS = [
   { href: "admin/admin.html", label: "⚙️ Administration", admin: true },
   { href: "admin/settings.html", label: "🔧 Paramètres", admin: true },
+  { href: "admin/logs.html", label: "🧾 Logs globaux", admin: true },
   { href: "stats.html", label: "📊 Stats societe", admin: true },
   { href: "admin/stats.html", label: "📈 Stats globales", master: true }
 ];

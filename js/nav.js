@@ -142,7 +142,7 @@ function applyRoleVisibility() {
   document.querySelectorAll(".nav-item").forEach(item => {
     const href = item.getAttribute("href") || "";
     const target = item.dataset.page || href;
-    if (target.includes("stats") || target.includes("admin/")) {
+    if (target.includes("stats") || target.includes("admin/") || target.includes("logs.html")) {
       item.style.display = "none";
     }
   });
