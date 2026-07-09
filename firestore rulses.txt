@@ -108,6 +108,12 @@ service cloud.firestore {
         );
     }
 
+    // Monitoring budget Firebase — lecture master admin uniquement
+    match /system/budget_monitor {
+      allow read: if signedIn() && isMasterOfCompany('main');
+      allow write: if isMasterOfCompany('main');
+    }
+
     // ── Users ──────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isActiveMember());

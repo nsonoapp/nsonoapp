@@ -164,11 +164,25 @@ export async function verifyEntityPasswordViaRules(entityId, plainPassword) {
   }
 }
 
+export function isCompanyGeneralAdmin(company, userId) {
+  const uid = String(userId || "").trim();
+  if (!company || !uid) {
+    return false;
+  }
+
+  const masterAdminIds = Array.isArray(company.masterAdminIds)
+    ? company.masterAdminIds
+    : [];
+
+  return masterAdminIds.includes(uid) || company.masterAdminId === uid;
+}
+
 export async function resolveCompanyAccess({
   companyIdentifier,
   companyPassword,
   entityIdentifier,
-  entityPassword
+  entityPassword,
+  userId = null
 }) {
   const company = await getSingleCompany();
   if (!company) {
@@ -196,6 +210,10 @@ export async function resolveCompanyAccess({
   );
   if (!companyPasswordOk) {
     return { ok: false, error: "company_password_invalid", company: null };
+  }
+
+  if (isCompanyGeneralAdmin(matched, userId)) {
+    return { ok: true, company: matched, entity: null, isGeneralAdmin: true };
   }
 
   const entityKey = String(entityIdentifier || "").trim();

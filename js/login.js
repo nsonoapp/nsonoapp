@@ -41,12 +41,14 @@ const googleLoginBtn = document.getElementById("googleLoginBtn");
 
 initPasswordToggles();
 
-async function resolveCompanyGate() {
+async function resolveCompanyGate(userData) {
+  const uid = userData?.userId || userData?.id || "";
   const companyAccess = await validateCompanyAccess({
     companyIdentifier: companyNameInput?.value.trim(),
     companyPassword: companyPasswordInput?.value || "",
     entityIdentifier: entityNameInput?.value.trim(),
-    entityPassword: entityPasswordInput?.value || ""
+    entityPassword: entityPasswordInput?.value || "",
+    userId: uid
   });
 
   if (!companyAccess.ok) {
@@ -92,7 +94,7 @@ async function redirectAfterLogin(userData, action, companyAccess = null) {
     return;
   }
 
-  if (entity?.id && userData?.entityId && userData.entityId !== entity.id) {
+  if (!companyAccess.isGeneralAdmin && entity?.id && userData?.entityId && userData.entityId !== entity.id) {
     await signOut(auth);
     alert("Ce compte n'appartient pas à cette entité.");
     return;
@@ -133,7 +135,7 @@ bindFormAction(loginForm, async () => {
       return;
     }
 
-    const companyAccess = await resolveCompanyGate();
+    const companyAccess = await resolveCompanyGate(userData);
     await redirectAfterLogin(userData, "login", companyAccess);
   } catch (err) {
     console.error("[login] erreur:", err?.code || err?.message, err);
@@ -158,7 +160,7 @@ async function handleGoogleLogin() {
       userData = await ensureFirestoreUser(result.user, { isActive: true });
     }
 
-    const companyAccess = await resolveCompanyGate();
+    const companyAccess = await resolveCompanyGate(userData);
     await redirectAfterLogin(userData, "google_login", companyAccess);
   } catch (err) {
     console.error("[login] Google erreur:", err?.code || err?.message, err);

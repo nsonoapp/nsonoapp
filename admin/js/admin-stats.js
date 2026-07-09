@@ -21,5 +21,8 @@ onAuthStateChanged(auth, async (user) => {
     title.textContent = "📈 Statistiques globales";
   }
 
+  const { initBudgetMonitor } = await import("./budget-monitor.js");
+  await initBudgetMonitor();
+
   await import("../../js/stats.js");
 });

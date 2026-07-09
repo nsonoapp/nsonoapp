@@ -248,18 +248,12 @@ function renderOperationalFinance(sales, expenses, losses) {
   list.className = "finance-breakdown-list";
 
   const rows = [
-    ["Revenus ventes (articles vendables)", formatMoney(salesFlow.revenue)],
-    ["Bénéfice brut ventes", formatMoney(salesFlow.profit)],
     ["Achats stock vente (période)", formatMoney(salesPurchases)],
     ["Valeur stock vente actuel", formatMoney(salesStockValue)],
-    ["Achats outils / matériel (période)", formatMoney(toolsPurchases)],
-    ["Valeur stock outils actuel", formatMoney(toolsStockValue)],
     ["Investissements (exclus du calcul)", formatMoney(investmentOnlyTotal)],
     ["Réinvestissements (exclus du calcul)", formatMoney(reinvestmentTotal)],
     ["Invest./réinvest. liés aux outils", formatMoney(toolsInvestExpenses)],
-    ["Dépenses opérationnelles", formatMoney(operatingExpenses)],
-    ["Pertes actives", formatMoney(lossesTotal)],
-    ["Bénéfice opérationnel pur", formatMoney(pureOperationalBenefit)]
+    ["Pertes actives", formatMoney(lossesTotal)]
   ];
 
   if (toolsFlow.revenue > 0 || toolsFlow.profit > 0) {

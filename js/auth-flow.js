@@ -15,7 +15,8 @@ import { getAuth, signOut, onAuthStateChanged } from "./auth.js";
 import {
   resolveCompanyAccess,
   storeCompanySession,
-  hasSingleCompany
+  hasSingleCompany,
+  isCompanyGeneralAdmin
 } from "../admin/js/company-auth.js";
 import { setEntityContext } from "../admin/js/entity-context.js";
 import {
@@ -110,19 +111,12 @@ export function isUserApproved(userData) {
 export function applyNsonoSession(userData, company = null) {
   const uid = userData?.userId || userData?.id;
   const companyId = company?.id || userData?.companyId || null;
-  const masterAdminIds = Array.isArray(company?.masterAdminIds)
-    ? company.masterAdminIds
-    : [];
-  const isMasterAdmin = Boolean(
-    masterAdminIds.includes(uid) ||
-    company?.masterAdminId === uid ||
-    userData?.role === "admin"
-  );
+  const isGeneralAdmin = isCompanyGeneralAdmin(company, uid);
 
   setEntityContext({
     companyId,
-    entityId: userData?.entityId || null,
-    isMasterAdmin
+    entityId: isGeneralAdmin ? null : (userData?.entityId || null),
+    isMasterAdmin: isGeneralAdmin
   });
 
   if (company?.id) {

@@ -165,18 +165,18 @@
 
       <div class="field-group">
         <label for="entityName">Entité</label>
-        <input type="text" id="entityName" placeholder="Nom ou ID entité" maxlength="80" autocomplete="off" required>
+        <input type="text" id="entityName" placeholder="Nom ou ID entité" maxlength="80" autocomplete="off">
       </div>
 
       <div class="field-group">
         <label for="entityPassword">Mot de passe entité</label>
         <div class="password-field">
-          <input type="password" id="entityPassword" placeholder="Mot de passe entité" autocomplete="off" required minlength="6">
+          <input type="password" id="entityPassword" placeholder="Mot de passe entité" autocomplete="off" minlength="6">
           <button type="button" class="password-toggle" data-password-toggle="entityPassword" aria-label="Afficher le mot de passe entité"></button>
         </div>
       </div>
 
-      <p class="hint">Connexion bloquée sans mot de passe société et entité valides.</p>
+      <p class="hint">Mot de passe société obligatoire. Entité + mot de passe entité requis pour les comptes locaux (hors admins généraux).</p>
 
       <div class="checkbox-group">
         <input type="checkbox" id="rememberMe">

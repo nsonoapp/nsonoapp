@@ -444,6 +444,115 @@ main{
   line-height:1.5;
 }
 
+/* BUDGET MONITOR */
+
+.budget-panel{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:14px;
+  box-shadow:var(--shadow);
+  border:2px solid rgba(22,163,74,0.25);
+}
+
+.budget-panel.budget-warning{
+  border-color:rgba(245,158,11,0.55);
+  background:linear-gradient(135deg,#fff 0%,#fff9ed 100%);
+}
+
+.budget-panel.budget-danger{
+  border-color:rgba(217,45,32,0.55);
+  background:linear-gradient(135deg,#fff 0%,#fff3f2 100%);
+}
+
+.budget-panel.budget-unsynced{
+  border-color:rgba(102,102,102,0.35);
+}
+
+.budget-alert{
+  margin-bottom:12px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:#f7f7f7;
+}
+
+.budget-panel.budget-warning .budget-alert{
+  background:rgba(245,158,11,0.12);
+}
+
+.budget-panel.budget-danger .budget-alert{
+  background:rgba(217,45,32,0.1);
+}
+
+.budget-kpi-grid{
+  margin-bottom:12px;
+}
+
+.budget-kpi.budget-card-warning{
+  border:1px solid rgba(245,158,11,0.45);
+}
+
+.budget-kpi.budget-card-danger{
+  border:1px solid rgba(217,45,32,0.45);
+}
+
+.budget-kpi-percent{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:6px;
+}
+
+.budget-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.budget-meta{
+  font-size:11px;
+  color:var(--muted);
+}
+
+.budget-modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  z-index:1000;
+}
+
+.budget-modal{
+  width:100%;
+  max-width:480px;
+  background:#fff;
+  border-radius:14px;
+  padding:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.2);
+}
+
+.budget-modal h3{
+  font-size:16px;
+  margin-bottom:12px;
+  color:var(--primary);
+}
+
+.budget-modal-body p{
+  font-size:13px;
+  color:var(--muted);
+  line-height:1.55;
+  margin-bottom:10px;
+}
+
+.budget-modal-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:14px;
+}
+
 /* ACTIVITY */
 
 .activity-card{
@@ -731,6 +840,59 @@ nav .nav-item.active{
 
 
 <main id="statsMain">
+
+  <section class="section" id="budgetSection">
+
+    <div class="section-header">
+      <div>
+        <div class="section-title">💳 Gestion Budgétaire</div>
+        <div class="section-subtitle">Surveillance quota Firebase (informatif)</div>
+      </div>
+    </div>
+
+    <div class="budget-panel budget-ok" id="budgetPanel">
+
+      <div class="budget-alert" id="budgetAlert">
+        <div class="alert-title" id="budgetAlertTitle">Chargement...</div>
+        <div class="alert-text" id="budgetAlertText">Lecture des métriques en cours...</div>
+      </div>
+
+      <div class="kpi-grid budget-kpi-grid" id="budgetKpiGrid">
+
+        <div class="kpi-card budget-kpi budget-card-ok" id="budgetReadsCard">
+          <div class="kpi-label">📖 Lectures (jour)</div>
+          <div class="kpi-value" id="budgetReadsValue">—</div>
+          <div class="budget-kpi-percent" id="budgetReadsPercent">—</div>
+        </div>
+
+        <div class="kpi-card budget-kpi budget-card-ok" id="budgetWritesCard">
+          <div class="kpi-label">✍️ Écritures (jour)</div>
+          <div class="kpi-value" id="budgetWritesValue">—</div>
+          <div class="budget-kpi-percent" id="budgetWritesPercent">—</div>
+        </div>
+
+        <div class="kpi-card budget-kpi budget-card-ok" id="budgetStorageCard">
+          <div class="kpi-label">💾 Stockage</div>
+          <div class="kpi-value" id="budgetStorageValue">—</div>
+          <div class="budget-kpi-percent" id="budgetStoragePercent">—</div>
+        </div>
+
+      </div>
+
+      <div class="budget-actions">
+        <button type="button" class="action-btn primary-btn" id="budgetBillingBtn">
+          Vérifier la facturation
+        </button>
+        <button type="button" class="action-btn secondary-btn" id="budgetHelpBtn">
+          Aide technique
+        </button>
+      </div>
+
+      <p class="budget-meta" id="budgetMeta">—</p>
+
+    </div>
+
+  </section>
 
   <section class="section" id="kpiSection">
 
