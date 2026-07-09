@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="css/drawer.css">
   <title>NSONO - vente</title>
 
-<script type="module" src="js/drawer.js" defer></script>
 <script type="module" src="js/index.js" defer></script>
 <script src="js/ui.js" defer></script>
 <script src="js/nav.js" defer></script>
@@ -392,11 +391,19 @@ nav .nav-item.active{
   </style>
 </head>
 
-<body>
+<body class="nsono-app">
+
+<div id="nsonoDrawerOverlay"></div>
+<aside id="nsonoDrawer" aria-hidden="true">
+  <nav id="nsonoDrawerNav"></nav>
+</aside>
+
+<div id="nsonoMain">
 
 <header>
+  <button type="button" id="nsonoDrawerToggle" aria-label="Ouvrir le menu">☰</button>
   <div>
-    <h3>NSONO - vente</h3>
+    <h3 class="nsono-page-title">NSONO - vente</h3>
     <span id="indexLockBadge" class="lock-badge hidden" aria-live="polite">🔒 Écritures verrouillées</span>
   </div>
   <div class="status" id="status">● Online</div>
@@ -481,6 +488,9 @@ nav .nav-item.active{
   </a>
 
 </nav>
+
+</div>
+
 <script type="module" src="js/calcule.js"></script>
 </body>
   </html>

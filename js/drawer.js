@@ -1,4 +1,3 @@
-import { isAppLocked } from "./services/firebaseService.js";
 import {
   canAccessAdmin,
   loadUserPermissions,
@@ -31,6 +30,8 @@ const ADMIN_ITEMS = [
   { href: "admin/stats.html", label: "📈 Stats globales", master: true }
 ];
 
+const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)");
+
 function getBasePath() {
   const parts = location.pathname.split("/").filter(Boolean);
   if (parts.length <= 1) {
@@ -48,9 +49,6 @@ function resolveHref(href) {
   if (!base) {
     return href;
   }
-  if (href.startsWith("admin/")) {
-    return `${base}${href}`;
-  }
   return `${base}${href}`;
 }
 
@@ -60,22 +58,13 @@ function currentFile() {
 
 function createEl(tag, className, text) {
   const el = document.createElement(tag);
-  if (className) el.className = className;
-  if (text) el.textContent = text;
-  return el;
-}
-
-function renderLockBadge(container) {
-  const badge = createEl("span", null, "🔒 Écritures verrouillées (local)");
-  badge.id = "nsonoLockBadge";
-  if (!isAppLocked()) {
-    badge.classList.add("hidden");
+  if (className) {
+    el.className = className;
   }
-  container.appendChild(badge);
-
-  window.addEventListener("nsono:lock-changed", e => {
-    badge.classList.toggle("hidden", !e.detail?.locked);
-  });
+  if (text) {
+    el.textContent = text;
+  }
+  return el;
 }
 
 function canSeeItem(item, permissions, isAdmin) {
@@ -88,90 +77,98 @@ function canSeeItem(item, permissions, isAdmin) {
   return item.scopes.some(scope => hasScope(scope, permissions));
 }
 
-function buildDrawer(isAdmin, isMaster, permissions = null) {
-  if (document.getElementById("nsonoDrawer")) {
+function addSection(nav, title, items) {
+  if (!items.length) {
     return;
   }
-
-  const toggle = createEl("button", null, "☰");
-  toggle.id = "nsonoDrawerToggle";
-  toggle.type = "button";
-  toggle.setAttribute("aria-label", "Ouvrir le menu");
-
-  const overlay = createEl("div");
-  overlay.id = "nsonoDrawerOverlay";
-
-  const drawer = createEl("aside");
-  drawer.id = "nsonoDrawer";
-
-  const header = createEl("div");
-  header.id = "nsonoDrawerHeader";
-  header.appendChild(createEl("h2", null, "NSONO"));
-  header.appendChild(createEl("p", null, "Navigation"));
-  renderLockBadge(header);
-
-  const nav = createEl("nav");
-  nav.id = "nsonoDrawerNav";
-
+  nav.appendChild(createEl("div", "drawer-section-title", title));
   const current = currentFile();
+  items.forEach(item => {
+    const link = createEl("a", "drawer-link", item.label);
+    link.href = resolveHref(item.href);
+    if (item.href.endsWith(current)) {
+      link.classList.add("active");
+    }
+    nav.appendChild(link);
+  });
+}
 
-  const addSection = (title, items) => {
-    nav.appendChild(createEl("div", "drawer-section-title", title));
-    items.forEach(item => {
-      const a = createEl("a", "drawer-link", item.label);
-      a.href = resolveHref(item.href);
-      if (item.href.endsWith(current)) {
-        a.classList.add("active");
-      }
-      nav.appendChild(a);
-    });
-  };
+function populateDrawerNav(nav, isAdmin, isMaster, permissions) {
+  nav.replaceChildren();
 
-  addSection("Métier", NAV_ITEMS.filter(i =>
-    i.section === "metier" && canSeeItem(i, permissions, isAdmin)
-  ));
-  addSection("Système", NAV_ITEMS.filter(i => i.section === "systeme"));
+  addSection(
+    nav,
+    "Métier",
+    NAV_ITEMS.filter(i => i.section === "metier" && canSeeItem(i, permissions, isAdmin))
+  );
+  addSection(nav, "Système", NAV_ITEMS.filter(i => i.section === "systeme"));
 
   if (isAdmin) {
-    const adminLinks = ADMIN_ITEMS.filter(item => {
-      if (item.master) return isMaster;
-      return true;
-    });
-    if (adminLinks.length) {
-      addSection("Admin", adminLinks);
-    }
-  }
-
-  drawer.append(header, nav);
-  document.body.append(toggle, overlay, drawer);
-  document.body.classList.add("nsono-drawer-desktop");
-
-  const open = () => {
-    drawer.classList.add("open");
-    overlay.classList.add("open");
-  };
-
-  const close = () => {
-    drawer.classList.remove("open");
-    overlay.classList.remove("open");
-  };
-
-  toggle.addEventListener("click", () => {
-    if (drawer.classList.contains("open")) {
-      close();
-    } else {
-      open();
-    }
-  });
-
-  overlay.addEventListener("click", close);
-
-  if (window.matchMedia("(min-width: 1024px)").matches) {
-    drawer.classList.add("open");
+    const adminLinks = ADMIN_ITEMS.filter(item => !item.master || isMaster);
+    addSection(nav, "Admin", adminLinks);
   }
 }
 
-async function initDrawer() {
+function setDrawerOpen(drawer, overlay, open) {
+  if (!drawer) {
+    return;
+  }
+  drawer.classList.toggle("open", open);
+  drawer.setAttribute("aria-hidden", open ? "false" : "true");
+  if (overlay) {
+    overlay.classList.toggle("open", open);
+  }
+}
+
+function applyResponsiveLayout(drawer, overlay) {
+  if (!drawer) {
+    return;
+  }
+  if (DESKTOP_MQ.matches) {
+    setDrawerOpen(drawer, overlay, true);
+    return;
+  }
+  setDrawerOpen(drawer, overlay, false);
+}
+
+function bindDrawerEvents(toggle, overlay, drawer) {
+  if (!toggle || !drawer) {
+    return;
+  }
+
+  toggle.addEventListener("click", () => {
+    if (DESKTOP_MQ.matches) {
+      return;
+    }
+    const willOpen = !drawer.classList.contains("open");
+    setDrawerOpen(drawer, overlay, willOpen);
+  });
+
+  overlay?.addEventListener("click", () => {
+    setDrawerOpen(drawer, overlay, false);
+  });
+
+  DESKTOP_MQ.addEventListener("change", () => {
+    applyResponsiveLayout(drawer, overlay);
+  });
+}
+
+export function initDrawerNavigation(isAdmin, isMaster, permissions = null) {
+  const drawer = document.getElementById("nsonoDrawer");
+  const nav = document.getElementById("nsonoDrawerNav");
+  const toggle = document.getElementById("nsonoDrawerToggle");
+  const overlay = document.getElementById("nsonoDrawerOverlay");
+
+  if (!drawer || !nav) {
+    return;
+  }
+
+  populateDrawerNav(nav, isAdmin, isMaster, permissions);
+  bindDrawerEvents(toggle, overlay, drawer);
+  applyResponsiveLayout(drawer, overlay);
+}
+
+async function bootstrapDrawer() {
   const uid = localStorage.getItem("userId");
   const role = localStorage.getItem("userRole");
   let isAdmin = role === "admin";
@@ -180,24 +177,18 @@ async function initDrawer() {
     try {
       const permissions = await loadUserPermissions(uid);
       isAdmin = canAccessAdmin(permissions);
-      buildDrawer(isAdmin, isMasterAdmin(), permissions);
+      initDrawerNavigation(isAdmin, isMasterAdmin(), permissions);
       return;
     } catch {
       /* fallback role local */
     }
   }
 
-  buildDrawer(isAdmin, role === "admin", null);
+  initDrawerNavigation(isAdmin, role === "admin", null);
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initDrawer);
+  document.addEventListener("DOMContentLoaded", bootstrapDrawer);
 } else {
-  initDrawer();
-}
-
-export function refreshDrawerLockBadge() {
-  const badge = document.getElementById("nsonoLockBadge");
-  if (!badge) return;
-  badge.classList.toggle("hidden", !isAppLocked());
+  bootstrapDrawer();
 }

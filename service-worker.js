@@ -1,4 +1,4 @@
-const CACHE_NAME = "NSONO_V3";
+const CACHE_NAME = "NSONO_V4";
 const BASE_PATH =
   self.location.pathname.replace(/\/service-worker\.js$/, "") || "";
 const withBase = (path) => {
@@ -12,6 +12,8 @@ const CORE_ASSETS = [
   "/",
   "/index.html",
   "/products.html",
+  "/tools.html",
+  "/logs.html",
   "/purchases.html",
   "/stats.html",
   "/finances.html",
@@ -41,6 +43,7 @@ const CORE_ASSETS = [
   "/admin/entities.html",
   "/admin/roles.html",
   "/admin/approvals.html",
+  "/admin/logs.html",
   "/admin/onboarding.html",
   "/admin/css/admin.css",
   "/admin/js/admin.js",
