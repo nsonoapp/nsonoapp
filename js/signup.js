@@ -136,20 +136,32 @@ bindActionButton(googleSignupBtn, async () => {
   try {
     await setPersistence(auth, browserLocalPersistence);
 
-    const companyAccess = await validateCompanyAccess({
-      companyIdentifier: document.getElementById("companyName")?.value.trim(),
-      companyPassword: document.getElementById("companyPassword")?.value || "",
-      entityIdentifier: document.getElementById("entityName")?.value.trim(),
-      entityPassword: document.getElementById("entityPassword")?.value || ""
-    });
-    if (!companyAccess.ok) {
-      throw new Error(companyAccess.error || "company_credentials_required");
+    const companyName = document.getElementById("companyName")?.value.trim();
+    const companyPassword = document.getElementById("companyPassword")?.value || "";
+    const entityName = document.getElementById("entityName")?.value.trim();
+    const entityPassword = document.getElementById("entityPassword")?.value || "";
+
+    if (!companyName || !companyPassword || !entityName || !entityPassword) {
+      alert("Remplis tous les champs société et entité");
+      return;
     }
 
     console.log("[signup] signInWithPopup Google");
     const result = await signInWithPopup(auth, googleProvider);
     await waitForAuthReady(auth, result.user.uid);
     console.log("[signup] Google OK, uid:", result.user.uid);
+
+    const companyAccess = await validateCompanyAccess({
+      companyIdentifier: companyName,
+      companyPassword,
+      entityIdentifier: entityName,
+      entityPassword,
+      userId: result.user.uid
+    });
+    if (!companyAccess.ok) {
+      await signOut(auth);
+      throw new Error(companyAccess.error || "company_credentials_required");
+    }
 
     const isActive = document.getElementById("isActive")?.checked ?? true;
     const userData = await ensureFirestoreUser(result.user, {

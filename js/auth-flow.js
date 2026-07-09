@@ -24,7 +24,7 @@ import {
   clearPermissionsCache
 } from "../admin/js/permissions.js";
 
-const MAX_USERS = 5;
+const MAX_USERS = 100;
 const auth = getAuth();
 
 export function isAllowedRole(role) {
@@ -81,7 +81,7 @@ export async function ensureSystemMeta() {
     };
   }
 
-  console.log("[auth-flow] system/meta absent → création { usersCount: 0, maxUsers: 5 }");
+  console.log("[auth-flow] system/meta absent → création { usersCount: 0, maxUsers:", MAX_USERS, "}");
   const initial = { usersCount: 0, maxUsers: MAX_USERS };
   await setDoc(metaRef, initial);
   return { metaRef, usersCount: 0, maxUsers: MAX_USERS };
@@ -213,7 +213,7 @@ export function authErrorMessage(err, fallback = "Erreur") {
   }
 
   if (message === "user_limit") {
-    return `Limite atteinte : ${MAX_USERS} utilisateurs maximum.`;
+    return "Limite utilisateurs atteinte pour cette société.";
   }
 
   if (message === "auth_not_ready") {
@@ -278,7 +278,7 @@ export function authErrorMessage(err, fallback = "Erreur") {
   if (code === "auth/cancelled-popup-request") return "Connexion Google annulée";
   if (code === "permission-denied") return "Accès refusé. Vérifiez les règles Firestore.";
   if (code === "meta_missing") return "Configuration system/meta manquante.";
-  if (code === "user_limit") return `Limite atteinte : ${MAX_USERS} utilisateurs maximum.`;
+  if (code === "user_limit") return "Limite utilisateurs atteinte pour cette société.";
 
   return fallback;
 }
