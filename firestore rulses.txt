@@ -25,26 +25,15 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/system/meta);
     }
 
-    function validMetaLimits(data) {
-      return data.maxUsers is int
-        && data.maxUsers >= 1
-        && data.maxUsers <= 500
-        && data.usersCount is int
-        && data.usersCount >= 0
-        && data.usersCount <= data.maxUsers;
-    }
-
-    function underUserLimit() {
-      return metaExists()
-        && metaDoc().data.usersCount < metaDoc().data.maxUsers;
+    function validMetaUsersCount(data) {
+      return data.usersCount is int
+        && data.usersCount >= 0;
     }
 
     function canIncrementUsersCount() {
       return signedIn()
         && metaExists()
-        && request.resource.data.usersCount == resource.data.usersCount + 1
-        && request.resource.data.maxUsers == resource.data.maxUsers
-        && request.resource.data.usersCount <= resource.data.maxUsers;
+        && request.resource.data.usersCount == resource.data.usersCount + 1;
     }
 
     function canCreateOwnLog() {
@@ -160,16 +149,16 @@ service cloud.firestore {
         && data.masterAdminIds.size() > 0
         && data.masterAdminIds.size() <= 5;
     }
-    // system/meta → { usersCount: 0, maxUsers: 100 } (quota société, pas boutique)
+    // system/meta → compteur informatif usersCount (aucune limite)
     match /system/meta {
       allow read: if signedIn();
 
       allow create: if signedIn()
-        && validMetaLimits(request.resource.data)
+        && validMetaUsersCount(request.resource.data)
         && request.resource.data.usersCount == 0;
 
       allow update: if signedIn()
-        && validMetaLimits(request.resource.data)
+        && validMetaUsersCount(request.resource.data)
         && (
           canIncrementUsersCount()
           || request.resource.data.usersCount == resource.data.usersCount - 1
@@ -188,10 +177,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isActiveMember());
 
-      // Création après Auth Firebase (signup) — quota via system/meta
+      // Création après Auth Firebase (signup) — sans limite utilisateurs
       allow create: if signedIn()
         && request.auth.uid == userId
-        && underUserLimit()
         && (validUserCreate() || validSignupUserCreate());
 
       allow update: if signedIn() && (

@@ -24,7 +24,6 @@ import {
   clearPermissionsCache
 } from "../admin/js/permissions.js";
 
-const MAX_USERS = 100;
 const auth = getAuth();
 
 export function isAllowedRole(role) {
@@ -76,15 +75,14 @@ export async function ensureSystemMeta() {
     const data = metaSnap.data();
     return {
       metaRef,
-      usersCount: Number(data.usersCount) || 0,
-      maxUsers: Number(data.maxUsers) || MAX_USERS
+      usersCount: Number(data.usersCount) || 0
     };
   }
 
-  console.log("[auth-flow] system/meta absent → création { usersCount: 0, maxUsers:", MAX_USERS, "}");
-  const initial = { usersCount: 0, maxUsers: MAX_USERS };
+  console.log("[auth-flow] system/meta absent → création { usersCount: 0 }");
+  const initial = { usersCount: 0 };
   await setDoc(metaRef, initial);
-  return { metaRef, usersCount: 0, maxUsers: MAX_USERS };
+  return { metaRef, usersCount: 0 };
 }
 
 export async function loadUserProfile(uid) {
@@ -167,12 +165,7 @@ export async function ensureFirestoreUser(user, options = {}) {
     return existing;
   }
 
-  const { metaRef, usersCount, maxUsers } = await ensureSystemMeta();
-
-  if (usersCount >= maxUsers) {
-    await signOut(auth);
-    throw new Error("user_limit");
-  }
+  const { metaRef, usersCount } = await ensureSystemMeta();
 
   const batch = writeBatch(db);
 
@@ -210,10 +203,6 @@ export function authErrorMessage(err, fallback = "Erreur") {
 
   if (message === "meta_missing") {
     return "Configuration system/meta manquante.";
-  }
-
-  if (message === "user_limit") {
-    return "Limite utilisateurs atteinte pour cette société.";
   }
 
   if (message === "auth_not_ready") {
@@ -278,7 +267,6 @@ export function authErrorMessage(err, fallback = "Erreur") {
   if (code === "auth/cancelled-popup-request") return "Connexion Google annulée";
   if (code === "permission-denied") return "Accès refusé. Vérifiez les règles Firestore.";
   if (code === "meta_missing") return "Configuration system/meta manquante.";
-  if (code === "user_limit") return "Limite utilisateurs atteinte pour cette société.";
 
   return fallback;
 }

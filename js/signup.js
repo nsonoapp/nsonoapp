@@ -65,12 +65,7 @@ bindFormAction(signupForm, async () => {
     await waitForAuthReady(auth, uid);
     console.log("[signup] Auth OK, uid:", uid);
 
-    const { metaRef, usersCount, maxUsers } = await ensureSystemMeta();
-
-    if (usersCount >= maxUsers) {
-      await signOut(auth);
-      throw new Error("user_limit");
-    }
+    const { metaRef, usersCount } = await ensureSystemMeta();
 
     const companyAccess = await validateCompanyAccess({
       companyIdentifier: companyName,

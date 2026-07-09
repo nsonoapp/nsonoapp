@@ -96,7 +96,7 @@ export const HELP_TUTORIALS = [
     role: "Contrôler qui accède à NSONO et avec quel niveau de permission (admin ou seller).",
     howTo: "Dans Paramètres → Utilisateurs, créez un compte, assignez le rôle, activez ou désactivez l'accès.",
     todo: "Un seller par point de vente si possible, révoquer l'accès des anciens employés, ne jamais laisser de compte inactif ouvert.",
-    body: "admin : accès Stats, Paramètres, toutes les ventes. seller : vente et modules autorisés, ventes limitées à son sellerId sur Vendus. Maximum 5 utilisateurs selon la configuration system/meta."
+    body: "admin : accès Stats, Paramètres, toutes les ventes. seller : vente et modules autorisés, ventes limitées à son sellerId sur Vendus. Les nouveaux comptes passent par approbation admin."
   },
   {
     id: "navigation",
