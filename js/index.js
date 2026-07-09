@@ -30,6 +30,7 @@ import { assertWritable, isAppLocked, runGuardedTransaction } from "./services/f
 import { bindActionButton } from "./utils/buttonManager.js";
 import { getAuth, onAuthStateChanged } from "./auth.js";
 import { generateReceipt } from "./receipt.js";
+import { loadUserPermissions, hasScope } from "../admin/js/permissions.js";
 
 function syncIndexLockBadge() {
   const badge = document.getElementById("indexLockBadge");
@@ -164,6 +165,12 @@ async function checkUser(uid) {
   const data = userDoc.data();
   if (!data.isActive || !["admin","seller"].includes(data.role)) {
     throw new Error("Accès refusé");
+  }
+
+  const permissions = await loadUserPermissions(uid);
+  const canSell = hasScope("scope_admin", permissions) || hasScope("scope_sales", permissions);
+  if (!canSell) {
+    throw new Error("Accès vente refusé pour ce rôle.");
   }
 
   return data;

@@ -122,6 +122,8 @@ textarea {
 .badge-expense { background: #0B5FFF; }
 .badge-debt { background: #8e44ad; }
 .badge-loss { background: #e74c3c; }
+.badge-loss-tools { background: #0B3D2E; }
+.badge-loss-sales { background: #d97706; }
 .badge-paid { background: #27ae60; }
 .badge-partial { background: #f39c12; }
 
@@ -348,6 +350,16 @@ nav .nav-item.active {
 .debt-badge-open { background: #7f8c8d; }
 .debt-badge-ok { background: #27ae60; }
 .debt-badge-paid { background: #27ae60; }
+
+.finance-item.loss-tools {
+  border-left: 4px solid #0B3D2E;
+  background: #eef8f4;
+}
+
+.finance-item.loss-sales {
+  border-left: 4px solid #d97706;
+  background: #fff8ed;
+}
 
 .back-link {
   display: inline-block;

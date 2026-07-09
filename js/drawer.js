@@ -1,10 +1,15 @@
 import { isAppLocked } from "./services/firebaseService.js";
-import { canAccessAdmin, loadUserPermissions } from "../admin/js/permissions.js";
+import {
+  canAccessAdmin,
+  loadUserPermissions,
+  hasScope
+} from "../admin/js/permissions.js";
 import { isMasterAdmin } from "../admin/js/entity-context.js";
 
 const NAV_ITEMS = [
-  { href: "index.html", label: "🛒 Vente", section: "metier" },
+  { href: "index.html", label: "🛒 Vente", section: "metier", scopes: ["scope_sales"] },
   { href: "products.html", label: "📦 Produits", section: "metier" },
+  { href: "tools.html", label: "🧰 Outils", section: "metier", scopes: ["scope_tools"] },
   { href: "ranging.html", label: "🏆 Ranking", section: "metier" },
   { href: "purchases.html", label: "📥 Achats", section: "metier" },
   { href: "vendus.html", label: "📋 Vendus", section: "metier" },
@@ -21,8 +26,7 @@ const ADMIN_ITEMS = [
   { href: "admin/admin.html", label: "⚙️ Administration", admin: true },
   { href: "admin/settings.html", label: "🔧 Paramètres", admin: true },
   { href: "stats.html", label: "📊 Stats societe", admin: true },
-  { href: "admin/stats.html", label: "📈 Stats globales", master: true },
-  { href: "batch/batch_management.html", label: "📦 Lots", admin: true }
+  { href: "admin/stats.html", label: "📈 Stats globales", master: true }
 ];
 
 function getBasePath() {
@@ -31,7 +35,7 @@ function getBasePath() {
     return "";
   }
   const depth = parts.length - 1;
-  if (parts[0] === "admin" || parts[0] === "batch") {
+  if (parts[0] === "admin") {
     return "../".repeat(depth);
   }
   return depth > 1 ? "../".repeat(depth - 1) : "";
@@ -42,7 +46,7 @@ function resolveHref(href) {
   if (!base) {
     return href;
   }
-  if (href.startsWith("admin/") || href.startsWith("batch/")) {
+  if (href.startsWith("admin/")) {
     return `${base}${href}`;
   }
   return `${base}${href}`;
@@ -72,7 +76,17 @@ function renderLockBadge(container) {
   });
 }
 
-function buildDrawer(isAdmin, isMaster) {
+function canSeeItem(item, permissions, isAdmin) {
+  if (!item?.scopes?.length) {
+    return true;
+  }
+  if (isAdmin) {
+    return true;
+  }
+  return item.scopes.some(scope => hasScope(scope, permissions));
+}
+
+function buildDrawer(isAdmin, isMaster, permissions = null) {
   if (document.getElementById("nsonoDrawer")) {
     return;
   }
@@ -111,7 +125,9 @@ function buildDrawer(isAdmin, isMaster) {
     });
   };
 
-  addSection("Métier", NAV_ITEMS.filter(i => i.section === "metier"));
+  addSection("Métier", NAV_ITEMS.filter(i =>
+    i.section === "metier" && canSeeItem(i, permissions, isAdmin)
+  ));
   addSection("Système", NAV_ITEMS.filter(i => i.section === "systeme"));
 
   if (isAdmin) {
@@ -162,14 +178,14 @@ async function initDrawer() {
     try {
       const permissions = await loadUserPermissions(uid);
       isAdmin = canAccessAdmin(permissions);
-      buildDrawer(isAdmin, isMasterAdmin());
+      buildDrawer(isAdmin, isMasterAdmin(), permissions);
       return;
     } catch {
       /* fallback role local */
     }
   }
 
-  buildDrawer(isAdmin, role === "admin");
+  buildDrawer(isAdmin, role === "admin", null);
 }
 
 if (document.readyState === "loading") {

@@ -54,6 +54,7 @@ const list = document.getElementById("recordsList");
 const startDate = document.getElementById("startDate");
 const endDate = document.getElementById("endDate");
 const searchInput = document.getElementById("searchInput");
+const lossStockTypeFilter = document.getElementById("lossStockTypeFilter");
 const lossCorrectionModal = document.getElementById("lossCorrectionModal");
 
 bindDateLimits(startDate, endDate);
@@ -94,10 +95,18 @@ async function addStockMovement(payload) {
 
 function getFiltered() {
   const search = (searchInput?.value || "").toLowerCase();
+  const stockTypeFilter = lossStockTypeFilter?.value || "all";
 
   return allData.filter(item => {
     if (item.isSystemCorrection) return false;
     if (item.status === "cancelled") return false;
+    if (item.category === "product_loss" && stockTypeFilter !== "all") {
+      const product = allProducts.find(p => p.id === item.relatedTo);
+      const stockType = product?.stockType === "tools" ? "tools" : "sales";
+      if (stockType !== stockTypeFilter) {
+        return false;
+      }
+    }
 
     return (
       !search ||
@@ -129,6 +138,11 @@ function render(page = 1) {
   pageData.forEach(item => {
     const card = document.createElement("div");
     card.className = "finance-item";
+    const product = allProducts.find(p => p.id === item.relatedTo);
+    const isToolLoss = item.category === "product_loss" && product?.stockType === "tools";
+    if (item.category === "product_loss") {
+      card.classList.add(isToolLoss ? "loss-tools" : "loss-sales");
+    }
 
     const left = document.createElement("div");
     const title = document.createElement("strong");
@@ -138,6 +152,12 @@ function render(page = 1) {
     badge.className = "badge badge-loss";
     badge.textContent = "Perte";
     title.appendChild(badge);
+    if (item.category === "product_loss") {
+      const typeBadge = document.createElement("span");
+      typeBadge.className = `badge ${isToolLoss ? "badge-loss-tools" : "badge-loss-sales"}`;
+      typeBadge.textContent = isToolLoss ? "Outil" : "Marchandise";
+      title.appendChild(typeBadge);
+    }
 
     const sub = document.createElement("small");
     sub.textContent = item.category || "Sans catégorie";
@@ -468,6 +488,7 @@ document.getElementById("lossCorrectionCancelBtn")?.addEventListener("click", ()
 });
 
 searchInput?.addEventListener("input", () => render(1));
+lossStockTypeFilter?.addEventListener("change", () => render(1));
 
 onAuthStateChanged(auth, async user => {
   if (!user) {

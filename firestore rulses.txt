@@ -186,19 +186,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ── Module Batch (isolé) ───────────────────────────────────
-    match /batch_products/{id} {
-      allow read, write: if isActiveMember();
-    }
-
-    match /product_batches/{id} {
-      allow read, write: if isActiveMember();
-    }
-
-    match /batch_movements/{id} {
-      allow read, write: if isActiveMember();
-    }
-
     // ── NSONO — une seule société par base (companies/main) ────
     match /companies/{id} {
       allow read: if isActiveMember();

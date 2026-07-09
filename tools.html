@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com;">
+<title>NSONO - Gestion outils</title>
+<link rel="stylesheet" href="css/finances.css">
+<script src="js/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <h3>NSONO - Outils</h3>
+  <div class="status" id="status">● Online</div>
+</header>
+
+<div class="container">
+  <a class="back-link" href="products.html">← Produits</a>
+
+  <div class="form-box">
+    <h3>Affectation outil</h3>
+    <div class="form-grid">
+      <select id="toolSelect"></select>
+      <select id="assigneeSelect"></select>
+      <input type="text" id="assignmentPosition" placeholder="Poste (optionnel)" maxlength="80">
+      <button type="button" class="btn" id="assignToolBtn">Affecter</button>
+      <button type="button" class="btn" id="clearAssignmentBtn">Retirer affectation</button>
+    </div>
+  </div>
+
+  <div class="form-box filters-box">
+    <h3>Filtres</h3>
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label for="toolAssignmentFilter">Vue</label>
+        <select id="toolAssignmentFilter">
+          <option value="all">Tous</option>
+          <option value="assigned">Affectés</option>
+          <option value="unassigned">Non affectés</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="toolSearchInput">Recherche</label>
+        <input type="text" id="toolSearchInput" placeholder="Nom, variante, affectation...">
+      </div>
+    </div>
+  </div>
+
+  <div class="list" id="toolsList"></div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item" data-page="index.html">🛒 Vente</a>
+  <a href="products.html" class="nav-item" data-page="products.html">📦 Produits</a>
+  <a href="tools.html" class="nav-item active" data-page="tools.html">🧰 Outils</a>
+  <a href="purchases.html" class="nav-item" data-page="purchases.html">📥 Achats</a>
+  <a href="finances.html" class="nav-item" data-page="finances.html">💰 Finances</a>
+</nav>
+
+<script type="module" src="js/drawer.js"></script>
+<script type="module" src="js/tools.js"></script>
+</body>
+</html>

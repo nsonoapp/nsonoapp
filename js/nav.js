@@ -15,8 +15,8 @@ document
 
 function resolveDrawerPath() {
   const path = location.pathname.split("/").filter(Boolean);
-  const inAdminOrBatch = path[0] === "admin" || path[0] === "batch";
-  return inAdminOrBatch ? "../js/drawer.js" : "js/drawer.js";
+  const inAdmin = path[0] === "admin";
+  return inAdmin ? "../js/drawer.js" : "js/drawer.js";
 }
 
 function ensureDrawerLoaded() {
