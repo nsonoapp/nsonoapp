@@ -504,7 +504,7 @@ main{
 }
 
 /* NAV */
-nav{
+.bottom-nav{
   position:fixed;
   left:0;
   bottom:0;
@@ -527,7 +527,7 @@ nav{
   overflow:hidden;
 }
 
-nav .nav-item{
+.bottom-nav .nav-item{
   flex:1;
 
   min-width:0;
@@ -563,7 +563,7 @@ nav .nav-item{
   overflow:hidden;
 }
 
-nav .nav-item span{
+.bottom-nav .nav-item span{
   width:100%;
 
   overflow:hidden;
@@ -571,22 +571,22 @@ nav .nav-item span{
   white-space:nowrap;
 }
 
-nav .nav-item:hover{
+.bottom-nav .nav-item:hover{
   background:rgba(212,175,55,0.08);
 }
 
-nav .nav-item:active{
+.bottom-nav .nav-item:active{
   transform:scale(0.96);
 }
 
-nav .nav-item.active{
+.bottom-nav .nav-item.active{
   background:rgba(212,175,55,0.12);
   color:#D4AF37;
 }
 
 @media(min-width:768px){
 
-  nav{
+  .bottom-nav{
     max-width:900px;
 
     left:50%;
@@ -595,7 +595,7 @@ nav .nav-item.active{
     border-radius:16px 16px 0 0;
   }
 
-  nav .nav-item{
+  .bottom-nav .nav-item{
     font-size:12px;
   }
 
@@ -603,7 +603,7 @@ nav .nav-item.active{
 
 @media(min-width:1200px){
 
-  nav{
+  .bottom-nav{
     max-width:1000px;
   }
 

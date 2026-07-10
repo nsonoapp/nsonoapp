@@ -71,6 +71,7 @@ const stockAdjustExpirationDateInput = document.getElementById("stockAdjustExpir
 const DEFAULT_MARGIN = 1.3;
 
 let fundingSuggestTimer = null;
+let fundingRefreshRequestId = 0;
 let lastFundingContext = {
   purchaseCost: 0,
   profitSinceLastPurchase: 0,
@@ -245,8 +246,19 @@ function syncPurchaseFundingAmountField(fundingType, { preserveUserEdit = true }
 }
 
 async function refreshPurchaseFundingSuggestions() {
+  const requestId = ++fundingRefreshRequestId;
   const productId = productSelect?.value || "";
   const purchaseCost = getPurchaseCostFromForm();
+
+  // Mise à jour locale immédiate pour un feedback instantané.
+  lastFundingContext = {
+    purchaseCost,
+    profitSinceLastPurchase: lastFundingContext.profitSinceLastPurchase,
+    reinvestSuggested: Math.min(
+      purchaseCost > 0 ? purchaseCost : 0,
+      Math.max(0, Number(lastFundingContext.profitSinceLastPurchase || 0))
+    )
+  };
 
   if (purchaseCostPreview) {
     purchaseCostPreview.textContent =
@@ -280,6 +292,11 @@ async function refreshPurchaseFundingSuggestions() {
     console.error(err);
   }
 
+  // Ignore les réponses async obsolètes lorsque l'utilisateur continue à saisir.
+  if (requestId !== fundingRefreshRequestId) {
+    return;
+  }
+
   const reinvestSuggested =
     purchaseCost > 0
       ? Math.min(purchaseCost, Math.max(0, profitSince))
@@ -306,7 +323,7 @@ function schedulePurchaseFundingRefresh() {
 
   fundingSuggestTimer = setTimeout(() => {
     refreshPurchaseFundingSuggestions().catch(console.error);
-  }, 300);
+  }, 120);
 }
 
 function resetPurchaseFundingUi() {
@@ -1338,6 +1355,8 @@ document.querySelectorAll('input[name="purchaseFundingType"]').forEach(radio => 
     if (purchaseFundingAmountInput) {
       delete purchaseFundingAmountInput.dataset.userEdited;
     }
+
+    schedulePurchaseFundingRefresh();
 
     syncPurchaseFundingAmountField(getSelectedPurchaseFundingType(), {
       preserveUserEdit: false

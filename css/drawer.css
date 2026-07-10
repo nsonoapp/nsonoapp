@@ -29,6 +29,7 @@
   width: var(--drawer-width);
   max-width: 88vw;
   height: 100%;
+  max-height: 100vh;
   background: var(--drawer-bg);
   color: var(--drawer-text);
   transform: translateX(-100%);
@@ -36,8 +37,12 @@
   z-index: 9999;
   display: flex;
   flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  overflow: hidden;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
   visibility: hidden;
+  box-sizing: border-box;
 }
 
 #nsonoDrawer.open {
@@ -46,14 +51,48 @@
 }
 
 #nsonoDrawerNav {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 12px;
   -webkit-overflow-scrolling: touch;
 }
 
+/* Annule les styles globaux `nav {}` des pages (bottom-nav) */
+#nsonoDrawer #nsonoDrawerNav {
+  position: static !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  gap: 0 !important;
+  z-index: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
 .drawer-link {
   display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex: 0 0 auto;
   padding: 11px 12px;
   margin-bottom: 6px;
   border-radius: 10px;
@@ -61,7 +100,19 @@
   text-decoration: none;
   font-size: 14px;
   line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
   background: rgba(255, 255, 255, 0.04);
+}
+
+#nsonoDrawer .drawer-link {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  flex: 0 0 auto !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis;
 }
 
 .drawer-link:hover,
@@ -70,6 +121,10 @@
 }
 
 .drawer-section-title {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex: 0 0 auto;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -139,9 +194,15 @@ header:has(#nsonoDrawerToggle) .status {
     flex: 0 0 var(--drawer-width);
     max-width: none;
     height: 100vh;
+    max-height: 100dvh;
     transform: none;
     visibility: visible;
     box-shadow: none;
+  }
+
+  #nsonoDrawer #nsonoDrawerNav {
+    max-height: 100% !important;
+    height: auto !important;
   }
 
   #nsonoDrawerToggle {

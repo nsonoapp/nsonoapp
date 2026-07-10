@@ -204,7 +204,7 @@ transform:translateY(0);
 }
 }
 
-nav{
+.bottom-nav{
 position:fixed;
 left:0;
 bottom:0;
@@ -220,7 +220,7 @@ z-index:1000;
 overflow:hidden;
 }
 
-nav .nav-item{
+.bottom-nav .nav-item{
 flex:1;
 min-width:0;
 display:flex;
@@ -239,12 +239,12 @@ text-align:center;
 transition:.2s;
 }
 
-nav .nav-item.active{
+.bottom-nav .nav-item.active{
 background:rgba(212,175,55,.12);
 color:#D4AF37;
 }
 
-nav .nav-item:active{
+.bottom-nav .nav-item:active{
 transform:scale(.96);
 }
 
@@ -270,7 +270,7 @@ width:100%;
 
 @media(min-width:768px){
 
-nav{
+.bottom-nav{
 max-width:900px;
 left:50%;
 transform:translateX(-50%);

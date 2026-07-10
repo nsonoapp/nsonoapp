@@ -31,6 +31,7 @@ const ADMIN_ITEMS = [
 ];
 
 const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)");
+let drawerMqBound = false;
 
 function getBasePath() {
   const parts = location.pathname.split("/").filter(Boolean);
@@ -135,6 +136,10 @@ function bindDrawerEvents(toggle, overlay, drawer) {
   if (!toggle || !drawer) {
     return;
   }
+  if (toggle.dataset.nsonoDrawerBound === "1") {
+    return;
+  }
+  toggle.dataset.nsonoDrawerBound = "1";
 
   toggle.addEventListener("click", () => {
     if (DESKTOP_MQ.matches) {
@@ -148,9 +153,14 @@ function bindDrawerEvents(toggle, overlay, drawer) {
     setDrawerOpen(drawer, overlay, false);
   });
 
-  DESKTOP_MQ.addEventListener("change", () => {
-    applyResponsiveLayout(drawer, overlay);
-  });
+  if (!drawerMqBound) {
+    DESKTOP_MQ.addEventListener("change", () => {
+      const currentDrawer = document.getElementById("nsonoDrawer");
+      const currentOverlay = document.getElementById("nsonoDrawerOverlay");
+      applyResponsiveLayout(currentDrawer, currentOverlay);
+    });
+    drawerMqBound = true;
+  }
 }
 
 export function initDrawerNavigation(isAdmin, isMaster, permissions = null) {
@@ -171,20 +181,22 @@ export function initDrawerNavigation(isAdmin, isMaster, permissions = null) {
 async function bootstrapDrawer() {
   const uid = localStorage.getItem("userId");
   const role = localStorage.getItem("userRole");
-  let isAdmin = role === "admin";
+  const localIsAdmin = role === "admin";
 
-  if (uid) {
-    try {
-      const permissions = await loadUserPermissions(uid);
-      isAdmin = canAccessAdmin(permissions);
-      initDrawerNavigation(isAdmin, isMasterAdmin(), permissions);
-      return;
-    } catch {
-      /* fallback role local */
-    }
+  // Render immédiat pour éviter tout délai au clic hamburger.
+  initDrawerNavigation(localIsAdmin, localIsAdmin, null);
+
+  if (!uid) {
+    return;
   }
 
-  initDrawerNavigation(isAdmin, role === "admin", null);
+  try {
+    const permissions = await loadUserPermissions(uid);
+    const isAdmin = canAccessAdmin(permissions);
+    initDrawerNavigation(isAdmin, isMasterAdmin(), permissions);
+  } catch {
+    /* fallback role local */
+  }
 }
 
 if (document.readyState === "loading") {
