@@ -34,7 +34,7 @@ function renderPendingBadge(count) {
 }
 
 guardAdminPage().then(async () => {
-  renderContextBanner();
+  await renderContextBanner();
   const ctx = getEntityContext();
   const companyName = getStoredCompanyName();
   showMessage(

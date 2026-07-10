@@ -4,6 +4,8 @@ const ADMIN_SECTION = {
   title: "Administration",
   items: [
     { href: "admin/admin.html", label: "Administration", icon: "⚙️" },
+    { href: "admin/company.html", label: "Societe", icon: "🏢", master: true },
+    { href: "admin/entities.html", label: "Entites", icon: "🏬" },
     { href: "admin/settings.html", label: "Parametres", icon: "🔧" },
     { href: "admin/logs.html", label: "Logs globaux", icon: "🧾" },
     { href: "stats.html", label: "Stats societe", icon: "📊" },

@@ -5,7 +5,8 @@ import {
   formatMoney,
   clearNode,
   getDate,
-  loadPreviousPeriodData
+  loadPreviousPeriodData,
+  filterActiveSales
 } from "./stats.js";
 import { getExpiringAlerts } from "./expiration.js";
 
@@ -51,7 +52,7 @@ function resolveSellerName(sellerId) {
 }
 
 export async function render(chartApi) {
-  const sales = state.sales;
+  const sales = filterActiveSales(state.sales);
   const expenses = state.expenses;
   const losses = state.losses;
 
@@ -287,23 +288,26 @@ function renderOperationalFinance(sales, expenses, losses) {
 }
 
 function calcPotentialMinProfit(products) {
-  return products.reduce((sum, p) => {
-    const buy = n(p.price_buy);
-    const minPrice = n(p.price_min) || n(p.price_sell) || buy;
-    const stock = n(p.stock_current);
-    return sum + Math.max(0, minPrice - buy) * stock;
-  }, 0);
+  return products
+    .filter(p => p.stockType !== "tools")
+    .reduce((sum, p) => {
+      const buy = n(p.price_buy);
+      const minPrice = n(p.price_min) || n(p.price_sell) || buy;
+      const stock = n(p.stock_current);
+      return sum + Math.max(0, minPrice - buy) * stock;
+    }, 0);
 }
 
 function renderFinancialHealth(sales, expenses, losses) {
-  const investmentTotal = sumExpensesByCategory(expenses, "investment");
-  const reinvestmentTotal = sumExpensesByCategory(expenses, "reinvestment");
+  const activeExpenses = expenses.filter(isActiveExpense);
+  const investmentTotal = sumExpensesByCategory(activeExpenses, "investment");
+  const reinvestmentTotal = sumExpensesByCategory(activeExpenses, "reinvestment");
 
-  const operatingExpenses = expenses
+  const operatingExpenses = activeExpenses
     .filter(e => e.category !== "investment" && e.category !== "reinvestment")
     .reduce((s, e) => s + n(e.amount), 0);
 
-  const expensesTotal = expenses.reduce((s, e) => s + n(e.amount), 0);
+  const expensesTotal = activeExpenses.reduce((s, e) => s + n(e.amount), 0);
 
   const lossesTotal =
     losses
@@ -325,7 +329,7 @@ function renderFinancialHealth(sales, expenses, losses) {
     );
 
   const grossProfit =
-    state.saleItems.reduce((s, i) => s + n(i.profit), 0);
+    getSaleItemsForSales(sales).reduce((s, i) => s + n(i.profit), 0);
 
   const potentialMinProfit = calcPotentialMinProfit(state.products);
 
@@ -346,6 +350,7 @@ function renderFinancialHealth(sales, expenses, losses) {
 }
 
 function renderStockHealth() {
+  const activeSales = filterActiveSales(state.sales);
   const stockValue =
     state.products.reduce((s, p) => {
       const price = n(p.price_buy || p.purchase_price);
@@ -360,11 +365,18 @@ function renderStockHealth() {
       n(p.stock_current) <= 0
     ).length;
 
+  const activeSaleIds = new Set(activeSales.map(s => s.id));
+
   const soldQty =
-    state.saleItems.reduce((s, i) => s + n(i.quantity), 0);
+    state.saleItems
+      .filter(i => activeSaleIds.has(i.saleId || i.sale_id))
+      .filter(i => !isToolsProduct(i.productId || i.product_id))
+      .reduce((s, i) => s + n(i.quantity), 0);
 
   const stockQty =
-    state.products.reduce((s, p) => s + n(p.stock_current), 0);
+    state.products
+      .filter(p => p.stockType !== "tools")
+      .reduce((s, p) => s + n(p.stock_current), 0);
 
   const rotation =
     stockQty > 0 ? (soldQty / stockQty).toFixed(2) : "0";
@@ -495,7 +507,7 @@ function renderKPIs(
   const saleIds = new Set(sales.map(s => s.id));
 
   const filteredItems =
-    state.saleItems.filter(i => saleIds.has(i.saleId));
+    state.saleItems.filter(i => saleIds.has(i.saleId || i.sale_id));
 
   const totalSales =
     filteredItems.reduce(
@@ -511,9 +523,9 @@ function renderKPIs(
     );
 
   const totalExpenses =
-    expenses.reduce((sum, e) =>
-      sum + n(e.amount), 0
-    );
+    expenses
+      .filter(isActiveExpense)
+      .reduce((sum, e) => sum + n(e.amount), 0);
 
   const totalLossesPeriod =
     losses
@@ -535,7 +547,7 @@ function renderKPIs(
   const previousSaleIds = new Set(previousSales.map(s => s.id));
 
   const previousItems =
-    state.saleItems.filter(i => previousSaleIds.has(i.saleId));
+    state.saleItems.filter(i => previousSaleIds.has(i.saleId || i.sale_id));
 
   const prevSalesTotal =
     previousItems.reduce(
@@ -550,10 +562,9 @@ function renderKPIs(
     );
 
   const prevExpensesTotal =
-    previousExpenses.reduce(
-      (sum, e) => sum + n(e.amount),
-      0
-    );
+    previousExpenses
+      .filter(isActiveExpense)
+      .reduce((sum, e) => sum + n(e.amount), 0);
 
   const prevLossesTotal =
     previousLosses
@@ -778,8 +789,14 @@ function renderSellers(sales, saleItems) {
   const itemsBySale = {};
 
   saleItems.forEach(i => {
-    if (!itemsBySale[i.saleId]) itemsBySale[i.saleId] = [];
-    itemsBySale[i.saleId].push(i);
+    const key = i.saleId || i.sale_id;
+    if (!key) {
+      return;
+    }
+    if (!itemsBySale[key]) {
+      itemsBySale[key] = [];
+    }
+    itemsBySale[key].push(i);
   });
 
   sales.forEach(s => {

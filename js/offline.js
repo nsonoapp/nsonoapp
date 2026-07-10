@@ -2,6 +2,8 @@
 // VERSION FINALE PRO SAFE + GENERIC + ANTI DOUBLE SYNC vrai offline 
 
 import { db } from "./firebase.js";
+import { getEntityContext, setEntityContext } from "../admin/js/entity-context.js";
+import { SINGLE_COMPANY_ID } from "../admin/js/admin-collections.js";
 
 /* =========================
    CONFIG
@@ -366,6 +368,12 @@ export function validateOfflineProduct(product) {
 
   }
 
+  if (product?.stockType === "tools") {
+    throw new Error(
+      `Produit non vendable (${product.name})`
+    );
+  }
+
   if (stock <= minOfflineStock) {
 
     throw new Error(
@@ -441,12 +449,16 @@ export function addToQueue(action) {
 
   const queue = getQueue();
 
+  const ctx = getEntityContext();
+
   const finalAction = {
     id: crypto.randomUUID(),
     deviceId: getDeviceId(),
     retryCount: 0,
     queuedAt: Date.now(),
     synced: false,
+    companyId: ctx.companyId || SINGLE_COMPANY_ID,
+    entityId: ctx.entityId || null,
     ...action
   };
 
@@ -522,11 +534,24 @@ export async function syncQueue(handlers = {}) {
           );
           continue;
         }
-        await handler({
-          ...action.data,
-          offlineActionId: action.id,
-          deviceId: action.deviceId
-        });
+        const previousContext = getEntityContext();
+        if (action.companyId) {
+          setEntityContext({
+            companyId: action.companyId,
+            entityId: action.entityId || null,
+            isMasterAdmin: false
+          });
+        }
+
+        try {
+          await handler({
+            ...action.data,
+            offlineActionId: action.id,
+            deviceId: action.deviceId
+          });
+        } finally {
+          setEntityContext(previousContext);
+        }
 
         console.log(
           `✅ Sync OK: ${action.type}`

@@ -6,8 +6,60 @@ import {
 } from "./permissions.js";
 import { getEntityContext } from "./entity-context.js";
 import { getStoredCompanyName } from "./company-auth.js";
+import { db, doc, getDoc } from "../../js/firebase.js";
+import { ADMIN_COLLECTIONS } from "./admin-collections.js";
 
 const auth = getAuth();
+const entityNameCache = new Map();
+
+export function cacheEntityName(entityId, name) {
+  if (entityId && name) {
+    entityNameCache.set(entityId, name);
+  }
+}
+
+async function resolveEntityLabel(entityId, isMasterAdminUser) {
+  if (!entityId) {
+    return isMasterAdminUser ? "Master Admin — toutes entités" : "Entité non définie";
+  }
+  if (entityNameCache.has(entityId)) {
+    return entityNameCache.get(entityId);
+  }
+  try {
+    const snap = await getDoc(doc(db, ADMIN_COLLECTIONS.entities, entityId));
+    if (snap.exists()) {
+      const name = snap.data().name || entityId;
+      entityNameCache.set(entityId, name);
+      return name;
+    }
+  } catch {
+    /* ignore */
+  }
+  return entityId;
+}
+
+export async function renderContextBanner(containerId = "adminContextBanner") {
+  const box = document.getElementById(containerId);
+  if (!box) {
+    return;
+  }
+
+  box.replaceChildren();
+  const ctx = getEntityContext();
+  const companyName = getStoredCompanyName() || ctx.companyId || "Société non liée";
+  const entityLabel = await resolveEntityLabel(ctx.entityId, ctx.isMasterAdmin);
+
+  const line = createTextEl(
+    "p",
+    ctx.isMasterAdmin && !ctx.entityId
+      ? `${companyName} • Master Admin — toutes entités`
+      : `${companyName} • Entité : ${entityLabel}`
+  );
+  line.style.margin = "0";
+  line.style.fontSize = "13px";
+  line.style.color = "#555";
+  box.appendChild(line);
+}
 
 export function createTextEl(tag, text, className) {
   const el = document.createElement(tag);
@@ -40,26 +92,6 @@ export function formatAdminDate(ts) {
     return "—";
   }
   return date.toLocaleDateString("fr-FR");
-}
-
-export function renderContextBanner(containerId = "adminContextBanner") {
-  const box = document.getElementById(containerId);
-  if (!box) {
-    return;
-  }
-
-  box.replaceChildren();
-  const ctx = getEntityContext();
-  const companyName = getStoredCompanyName() || ctx.companyId || "Société non liée";
-  const entityLabel = ctx.isMasterAdmin
-    ? (ctx.entityId ? `Entité : ${ctx.entityId}` : "Master Admin — toutes entités")
-    : (ctx.entityId ? `Entité : ${ctx.entityId}` : "Entité non définie");
-
-  const line = createTextEl("p", `${companyName} • ${entityLabel}`);
-  line.style.margin = "0";
-  line.style.fontSize = "13px";
-  line.style.color = "#555";
-  box.appendChild(line);
 }
 
 export function guardAdminPage(requiredScope = null) {

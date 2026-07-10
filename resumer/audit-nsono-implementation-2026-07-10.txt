@@ -1,0 +1,236 @@
+================================================================================
+NSONO — Résumé détaillé de l'implémentation audit (10 juillet 2026)
+================================================================================
+
+Contexte
+--------
+Plan d'audit : crashes, logique métier, gestion admin (entités, mots de passe
+société/entité, isolation multi-entités, statistiques, règles Firestore).
+
+Objectif : stabiliser l'application, débloquer les utilisateurs, sécuriser les
+données par entité, corriger les KPI, et donner au master admin les outils de
+gestion société/entités manquants.
+
+
+================================================================================
+PHASE 1 — Auth / admin (déblocage utilisateurs)
+================================================================================
+
+Fichiers modifiés
+  - admin/js/approvals.js
+  - admin/js/onboarding.js
+  - js/auth-flow.js
+  - js/auth.js
+  - js/waiting.js
+  - admin/js/entity-context.js
+
+Corrections
+  1. Approbation utilisateur
+     - À l'approbation : attribution automatique role: "seller" si role était "user".
+     - Impact : plus de blocage sur waiting.html après validation admin.
+
+  2. Onboarding société
+     - Le créateur reçoit role: "admin" en plus de masterAdminIds.
+     - Impact : premier installateur accède à l'ERP sans intervention manuelle.
+
+  3. Règle legacy approvalStatus unifiée
+     - isApprovedProfile() : absence du champ = approuvé (aligné sur isUserApproved).
+     - Impact : plus de déconnexion login OK / refresh bloqué.
+
+  4. Guards auth.js
+     - Master admin (masterAdminIds) autorisé même sans role admin/seller classique.
+     - ADMIN_ONLY_PAGES : accès admin ou master général.
+     - MASTER_ONLY_PAGES (admin/stats.html) : master uniquement.
+     - await restoreNsonoSession() avant accès métier (plus de race condition).
+
+  5. Session NSONO au logout
+     - clearNsonoSession() : userId, userRole, nsono_companyId, entity context,
+       company session, cache permissions.
+     - signOut() wrapper dans auth.js + nettoyage sur onAuthStateChanged(null).
+
+  6. Page waiting.html
+     - Polling toutes les 5 s : redirection auto vers index.html après approbation.
+
+  7. restoreNsonoSession
+     - Resynchronise localStorage.userRole depuis Firestore.
+     - Émet nsono:session-ready après chargement permissions.
+
+
+================================================================================
+PHASE 2 — UI gestion société / entités (besoin principal admin)
+================================================================================
+
+Nouveaux fichiers
+  - admin/company.html
+  - admin/js/company.js
+
+Fichiers modifiés
+  - admin/admin.html (lien hub Société)
+  - admin/entities.html (modal édition, sélecteur admin)
+  - admin/js/entities.js (refonte)
+  - admin/js/admin-shared.js (bannière avec nom entité)
+  - admin/css/admin.css (styles modal)
+  - js/drawer.js (liens Société / Entités)
+
+Page Société (master admin uniquement)
+  - Modifier nom société et companyCode (companies/main).
+  - Rotation mot de passe société → company_secrets/main (hash SHA-256).
+  - Gérer masterAdminIds (max 5 UID Firebase).
+  - Logs : company_update, company_password_rotate, company_master_admins_update.
+
+Page Entités enrichie
+  - Création : sélecteur utilisateur approuvé (plus UID brut obligatoire).
+  - Édition : nom, admin entité, rotation mot de passe entité.
+  - syncEntityAdminUser : adminId → users.entityId + role: "admin".
+  - loadEntities corrigé :
+      * Master : toutes les entités (where companyId == main).
+      * Admin entité : uniquement sa entité (getDoc par entityId).
+      * Plus d'applyEntityScope sur collection entities (bug liste vide).
+
+Bannière admin
+  - Affiche le nom lisible de l'entité (lecture entities/{id}) au lieu de l'ID technique.
+
+
+================================================================================
+PHASE 3 — Isolation multi-entités ERP
+================================================================================
+
+Fichiers modifiés
+  - js/index.js
+  - js/purchases.js
+  - js/losses.js
+  - js/offline.js
+  - js/finance/data.js
+  - js/firebase.js
+
+Corrections
+  1. Lectures produits scopées (applyEntityScope)
+     - index.js loadProducts()
+     - purchases.js loadStock()
+     - losses.js loadProducts()
+     - purchases.js getLastPurchaseDateForProduct / getProductProfitSince
+
+  2. Écritures scopées (withEntityScope)
+     - purchases.js : dépense écart achat, log correction stock manuelle.
+     - finance/data.js : recordStockFundingExpense().
+
+  3. writeLog() scopé
+     - firebase.js : injection companyId / entityId sur chaque log.
+
+  4. Offline
+     - addToQueue : stocke companyId + entityId à l'enqueue.
+     - syncQueue : restaure le contexte entité avant chaque handler.
+     - validateOfflineProduct : bloque stockType tools.
+
+  5. Ventes
+     - processSaleOnline : garde stockType !== "tools".
+     - Anti-doublon offline : requête sales scopée par entité.
+
+
+================================================================================
+PHASE 4 — Statistiques fiables
+================================================================================
+
+Fichiers modifiés
+  - js/stats.js
+  - js/render.js
+  - js/chart.js
+
+Corrections
+  1. Ventes annulées exclues
+     - isActiveSale() / filterActiveSales() dans stats.js.
+     - state.sales filtré au chargement.
+     - render.js : KPI, santé financière, vendeurs sur ventes actives.
+     - chart.js : buildSalesDataset / buildProfitDataset ignore cancelled.
+
+  2. Dépenses actives uniquement
+     - isActiveExpense() appliqué dans renderKPIs et renderFinancialHealth.
+     - Période précédente : dépenses filtrées pareil.
+
+  3. Période précédente scopée
+     - loadPreviousPeriodData() : applyEntityScope sur sales, expenses, losses.
+
+  4. Finance fallback scopé
+     - finance/data.js : fallback getDocs avec applyEntityScope.
+
+  5. Outils (stockType tools)
+     - calcPotentialMinProfit : exclut tools.
+     - renderStockHealth : rotation sur produits vendables uniquement.
+     - getSaleItemsForSales : fallback sale_id legacy conservé.
+
+
+================================================================================
+PHASE 5 — Règles Firestore durcies
+================================================================================
+
+Fichiers
+  - firestore rulses.txt (source projet)
+  - firestore.rules (copie pour déploiement Firebase)
+
+Modifications rules
+  1. Self-update users verrouillé
+     - approvalStatus, isActive, entityId, companyId immuables pour l'utilisateur.
+
+  2. Updates admin users scopés
+     - canAdminUpdateUser() : admin non-master limité à son entityId.
+
+  3. Master admin
+     - isMasterOfCompany('main') peut mettre à jour users.
+
+  4. companies/main update
+     - Uniquement isMasterOfCompany + validMasterAdminList (aligné masterAdminIds).
+
+  5. entities create
+     - Restreint à isAdmin() || isMasterOfCompany('main') (plus tout signedIn).
+
+
+================================================================================
+AUTRES — Cache PWA
+================================================================================
+
+  - service-worker.js : CACHE_NAME "NSONO V8"
+  - Ajout cache : admin/company.html, admin/js/company.js
+
+
+================================================================================
+DÉPLOIEMENT REQUIS (manuel)
+================================================================================
+
+  1. Firestore rules
+     firebase deploy --only firestore:rules
+     (utiliser firestore.rules généré)
+
+  2. PWA
+     Forcer refresh / vider cache pour activer NSONO V8.
+
+
+================================================================================
+FICHIERS NON MODIFIÉS (volontairement)
+================================================================================
+
+  - Logique transaction vente/achat/stock_movements (cœur ERP).
+  - Module batch /batch/ (isolé).
+  - Fichier plan audit (.cursor/plans/...) — non versionné ici.
+
+
+================================================================================
+RÉCAPITULATIF PAR PRIORITÉ D'ORIGINE
+================================================================================
+
+P0 Auth résolu        : approbation, onboarding, session, logout, waiting poll
+P0 Scope résolu       : index, purchases, losses, offline, logs, expenses
+P1 Stats résolu       : ventes annulées, dépenses actives, période précédente
+P2 Admin UI résolu    : page Société, édition entités, MDP rotation
+P3 Rules résolu       : users lock, entities create, companies master
+
+Reste optionnel (hors scope implémenté)
+  - products.js : garde changement stockType si ventes historiques (P2 #21)
+  - offline.js : alerte persistante après 5 retries (P2 #22)
+  - index.js : saleDateInput.min en dur 2026-04-30 (P2 #23)
+  - losses.js : catégories product_loss vs product (P2 #24)
+  - Onboarding : garde master strict + deadlock signup premier déploiement (P3 #25)
+
+
+================================================================================
+FIN DU RÉSUMÉ
+================================================================================

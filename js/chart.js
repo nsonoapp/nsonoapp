@@ -56,6 +56,10 @@ function buildSalesDataset(sales = []) {
   const map = {};
 
   sales.forEach(sale => {
+    if (sale?.status === "cancelled") {
+      return;
+    }
+
     const d = getDate(sale.createdAt);
     if (!d) return;
 
@@ -76,6 +80,10 @@ function buildProfitDataset(sales = []) {
   const map = {};
 
   sales.forEach(sale => {
+    if (sale?.status === "cancelled") {
+      return;
+    }
+
     const d = getDate(sale.createdAt);
     if (!d) return;
 

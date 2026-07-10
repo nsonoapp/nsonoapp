@@ -15,6 +15,7 @@ import { getAuth, signOut, onAuthStateChanged } from "./auth.js";
 import {
   resolveCompanyAccess,
   storeCompanySession,
+  clearCompanySession,
   hasSingleCompany,
   isCompanyGeneralAdmin,
   getSingleCompany
@@ -107,6 +108,15 @@ export function isUserApproved(userData) {
   return userData.approvalStatus === "approved";
 }
 
+export function clearNsonoSession() {
+  localStorage.removeItem("userId");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("nsono_companyId");
+  clearEntityContext();
+  clearCompanySession();
+  clearPermissionsCache();
+}
+
 export function applyNsonoSession(userData, company = null) {
   const uid = userData?.userId || userData?.id;
   const companyId = company?.id || userData?.companyId || null;
@@ -168,6 +178,13 @@ export async function restoreNsonoSession(uid) {
   }
 
   const company = await getSingleCompany().catch(() => null);
+  const isGeneralAdmin = isCompanyGeneralAdmin(company, uid);
+  const role = userData.role || "user";
+
+  if (isAllowedRole(role) || isGeneralAdmin) {
+    storeSession(uid, isAllowedRole(role) ? role : "admin");
+  }
+
   applyNsonoSession(userData, company);
   await loadUserPermissions(uid);
   window.dispatchEvent(new CustomEvent("nsono:session-ready", { detail: { uid } }));

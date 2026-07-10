@@ -79,11 +79,17 @@ function renderList() {
 
 async function updateApproval(item, status) {
   try {
-    await updateDoc(doc(db, ADMIN_COLLECTIONS.users, item.id), {
+    const updatePayload = {
       approvalStatus: status,
       isActive: status === APPROVAL_STATUS.approved,
       updatedAt: Timestamp.now()
-    });
+    };
+
+    if (status === APPROVAL_STATUS.approved && item.role === "user") {
+      updatePayload.role = "seller";
+    }
+
+    await updateDoc(doc(db, ADMIN_COLLECTIONS.users, item.id), updatePayload);
 
     await writeLog({
       userId: currentUserId,
@@ -103,6 +109,6 @@ async function updateApproval(item, status) {
 guardAdminPage("scope_approvals").then(async result => {
   currentUserId = result.user.uid;
   permissions = result.permissions;
-  renderContextBanner();
+  await renderContextBanner();
   await loadPendingUsers();
 });

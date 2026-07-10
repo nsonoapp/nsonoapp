@@ -41,4 +41,5 @@ export function isMasterAdmin() {
 export function clearEntityContext() {
   localStorage.removeItem(STORAGE_ENTITY_ID);
   localStorage.removeItem(STORAGE_IS_MASTER);
+  localStorage.removeItem("nsono_companyId");
 }

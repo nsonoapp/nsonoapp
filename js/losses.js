@@ -39,7 +39,7 @@ import {
 } from "./finance/notifications.js";
 import { showToast } from "./finance/toast.js";
 import { bindActionButton } from "./utils/buttonManager.js";
-import { withEntityScope } from "./nsono-scope.js";
+import { applyEntityScope } from "./nsono-scope.js";
 
 const auth = getAuth();
 let currentUserId = null;
@@ -63,7 +63,10 @@ async function loadProducts() {
   const select = document.getElementById("productSelect");
   if (!select) return;
 
-  const snap = await getDocs(collection(db, "products"));
+  const snap = await getDocs(query(
+    collection(db, "products"),
+    ...applyEntityScope([])
+  ));
   allProducts = [];
   select.replaceChildren();
 

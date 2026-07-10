@@ -123,6 +123,14 @@ export function getDate(v) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+export function isActiveSale(sale) {
+  return sale?.status !== "cancelled";
+}
+
+export function filterActiveSales(sales = []) {
+  return sales.filter(isActiveSale);
+}
+
 function buildSalesQuery() {
   const seller = $("sellerFilter")?.value || "all";
   const { start, end } = buildDateRange();
@@ -305,7 +313,9 @@ async function loadData() {
       getDocs(scopedPurchaseItemsQuery)
     ]);
 
-    state.sales = salesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    state.sales = filterActiveSales(
+      salesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    );
     state.expenses = expensesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     state.debts = debtsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     state.recentDebts = recentDebtsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -428,29 +438,33 @@ export async function loadPreviousPeriodData() {
   salesConstraints.push(orderBy("createdAt", "desc"));
 
   const salesSnap = await getDocs(
-    query(collection(db, "sales"), ...salesConstraints)
+    query(collection(db, "sales"), ...applyEntityScope(salesConstraints))
   );
 
   const expensesSnap = await getDocs(
     query(
       collection(db, "expenses"),
-      where("createdAt", ">=", start),
-      where("createdAt", "<=", end),
-      orderBy("createdAt", "desc")
+      ...applyEntityScope([
+        where("createdAt", ">=", start),
+        where("createdAt", "<=", end),
+        orderBy("createdAt", "desc")
+      ])
     )
   );
 
   const lossesSnap = await getDocs(
     query(
       collection(db, "losses"),
-      where("createdAt", ">=", start),
-      where("createdAt", "<=", end),
-      orderBy("createdAt", "desc")
+      ...applyEntityScope([
+        where("createdAt", ">=", start),
+        where("createdAt", "<=", end),
+        orderBy("createdAt", "desc")
+      ])
     )
   );
 
   return {
-    sales: salesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    sales: filterActiveSales(salesSnap.docs.map(d => ({ id: d.id, ...d.data() }))),
     expenses: expensesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
     losses: lossesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
   };

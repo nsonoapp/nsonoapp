@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0B3D2E">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self';">
 <link rel="manifest" href="../manifest.json">
-<title>Entités — NSONO Admin</title>
+<title>Société — NSONO Admin</title>
 <link rel="stylesheet" href="../css/drawer.css">
 <link rel="stylesheet" href="css/admin.css">
 <script src="../js/ui.js" defer></script>
@@ -16,7 +16,7 @@
 <body>
 
 <header>
-  <h3>NSONO — Entités</h3>
+  <h3>NSONO — Société</h3>
   <div class="status" id="status">● Online</div>
 </header>
 
@@ -25,37 +25,35 @@
   <div id="adminContextBanner"></div>
   <div id="adminDebug" style="font-size:13px"></div>
 
-  <div class="form-box" id="createEntityBox">
-    <h3>Nouvelle entité</h3>
+  <div class="form-box">
+    <h3>Informations société</h3>
     <div class="form-grid">
-      <input type="text" id="entityName" placeholder="Nom (ex. Goma)" maxlength="80">
-      <select id="entityAdminSelect">
-        <option value="">Admin entité (optionnel)</option>
-      </select>
-      <input type="password" id="entityPassword" placeholder="Mot de passe entité (min. 6)" minlength="6" maxlength="64">
+      <label for="companyNameEdit">Nom société</label>
+      <input type="text" id="companyNameEdit" maxlength="80">
+      <label for="companyCodeEdit">Code court</label>
+      <input type="text" id="companyCodeEdit" maxlength="32">
     </div>
-    <button type="button" class="btn" id="createEntityBtn">Créer l'entité</button>
+    <button type="button" class="btn" id="saveCompanyInfoBtn">Enregistrer les informations</button>
   </div>
 
-  <div class="list" id="entitiesList"></div>
-</div>
-
-<div class="modal" id="entityEditModal" aria-hidden="true">
-  <div class="modal-content">
-    <h3 id="entityEditTitle">Modifier l'entité</h3>
-    <input type="hidden" id="editEntityId">
-    <label for="editEntityName">Nom</label>
-    <input type="text" id="editEntityName" maxlength="80">
-    <label for="editEntityAdminSelect">Admin entité</label>
-    <select id="editEntityAdminSelect">
-      <option value="">— Aucun —</option>
-    </select>
-    <label for="editEntityPassword">Nouveau mot de passe entité (laisser vide pour ne pas changer)</label>
-    <input type="password" id="editEntityPassword" minlength="6" maxlength="64">
-    <div class="modal-actions">
-      <button type="button" class="btn" id="saveEntityEditBtn">Enregistrer</button>
-      <button type="button" class="btn btn-secondary" id="closeEntityEditBtn">Annuler</button>
+  <div class="form-box">
+    <h3>Mot de passe société</h3>
+    <p style="margin:0 0 12px;font-size:13px;color:#666">Stocké dans <code>company_secrets/main</code> (illisible côté client).</p>
+    <div class="form-grid">
+      <label for="companyNewPassword">Nouveau mot de passe</label>
+      <input type="password" id="companyNewPassword" minlength="6" maxlength="64">
+      <label for="companyNewPasswordConfirm">Confirmer</label>
+      <input type="password" id="companyNewPasswordConfirm" minlength="6" maxlength="64">
     </div>
+    <button type="button" class="btn" id="rotateCompanyPasswordBtn">Mettre à jour le mot de passe</button>
+  </div>
+
+  <div class="form-box">
+    <h3>Admins généraux (max. 5)</h3>
+    <p style="margin:0 0 12px;font-size:13px;color:#666">UID Firebase séparés par des virgules ou retours à la ligne.</p>
+    <label for="masterAdminIdsInput">masterAdminIds</label>
+    <textarea id="masterAdminIdsInput" rows="4" maxlength="640" style="width:100%;margin-bottom:12px"></textarea>
+    <button type="button" class="btn" id="saveMasterAdminsBtn">Enregistrer les admins généraux</button>
   </div>
 </div>
 
@@ -67,6 +65,6 @@
   <a href="../stats.html" class="nav-item" data-page="stats.html">📊 Stats</a>
 </nav>
 
-<script type="module" src="js/entities.js"></script>
+<script type="module" src="js/company.js"></script>
 </body>
 </html>

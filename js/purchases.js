@@ -4,7 +4,7 @@ import {
   db, collection, addDoc, getDocs, doc, updateDoc, query, where, serverTimestamp, getDoc, runTransaction, writeLog
 } from './firebase.js';
 import { getAuth, onAuthStateChanged } from "./auth.js";
-import { withEntityScope } from "./nsono-scope.js";
+import { withEntityScope, applyEntityScope } from "./nsono-scope.js";
 import { bindFormAction, bindActionButton } from "./utils/buttonManager.js";
 
 import {
@@ -143,7 +143,9 @@ function getPurchaseCostFromForm() {
 
 async function getLastPurchaseDateForProduct(productId) {
   const snap = await getDocs(
-    query(purchaseItemsCol, where("productId", "==", productId))
+    query(purchaseItemsCol, ...applyEntityScope([
+      where("productId", "==", productId)
+    ]))
   );
 
   let latestMs = null;
@@ -164,7 +166,10 @@ async function getProductProfitSince(productId, sinceDate) {
   const sinceMs = sinceDate ? sinceDate.getTime() : 0;
 
   const itemsSnap = await getDocs(
-    query(collection(db, "sale_items"), where("productId", "==", productId))
+    query(
+      collection(db, "sale_items"),
+      ...applyEntityScope([where("productId", "==", productId)])
+    )
   );
 
   const pendingItems = [];
@@ -681,7 +686,7 @@ async function processPurchaseOnline(data) {
 
     await addDoc(
       collection(db, "expenses"),
-      {
+      withEntityScope({
         reason: "Écart achat",
         category: "other",
         type: "purchase_diff",
@@ -692,7 +697,7 @@ async function processPurchaseOnline(data) {
         createdBy,
         createdAt: now(),
         updatedAt: now()
-      }
+      })
     );
 
   }
@@ -923,7 +928,7 @@ if (purchaseForm) {
 // --- LOAD STOCK ---
 async function loadStock() {
   stockTableBody.replaceChildren();
-  const prodSnap = await getDocs(productsCol);
+  const prodSnap = await getDocs(query(productsCol, ...applyEntityScope([])));
   if (isOffline()) 
   {
   debug("📴 Stock affiché depuis cache local" );
@@ -1287,7 +1292,7 @@ async function applyManualStockUpdate(productId, newQty, expirationDateStr = "")
 
     const logRef = doc(logsCol);
 
-    tx.set(logRef, {
+    tx.set(logRef, withEntityScope({
       userId: currentUserId,
       action: "manual_stock_update",
       targetId: productId,
@@ -1297,7 +1302,7 @@ async function applyManualStockUpdate(productId, newQty, expirationDateStr = "")
         expirationDate: expirationDateStr || null
       },
       createdAt: serverTimestamp()
-    });
+    }));
   });
 
   if (productHasExpiration) {

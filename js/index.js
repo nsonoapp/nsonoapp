@@ -3,6 +3,7 @@ import {
   db, collection, addDoc, setDoc, getDoc, doc, updateDoc, Timestamp, getDocs, query, where, enableIndexedDbPersistence, runTransaction, serverTimestamp, writeLog
 } from './firebase.js';
 import { withEntityScope } from "./nsono-scope.js";
+import { applyEntityScope } from "./nsono-scope.js";
  
 import {
   registerServiceWorker,
@@ -218,7 +219,10 @@ async function loadProducts() {
   expirationFeatureEnabled = isExpirationEnabled(cfg);
   expirationAlertDays = cfg?.expirationAlertDays ?? 30;
 
-  const snap = await getDocs(collection(db, "products"));
+  const snap = await getDocs(query(
+    collection(db, "products"),
+    ...applyEntityScope([])
+  ));
   allProducts = [];
 
   snap.forEach(docSnap => {
@@ -715,7 +719,9 @@ async function processSaleOnline(data) {
 
     const q = query(
       collection(db, "sales"),
-      where("offlineActionId", "==", offlineActionId)
+      ...applyEntityScope([
+        where("offlineActionId", "==", offlineActionId)
+      ])
     );
 
     const existing = await getDocs(q);
@@ -739,6 +745,15 @@ async function processSaleOnline(data) {
   for (const item of cart) {
     const snap = await getDoc(doc(db, "products", item.productId));
     productMeta[item.productId] = snap.exists() ? snap.data() : {};
+  }
+
+  for (const item of cart) {
+    const meta = productMeta[item.productId];
+    if (meta?.stockType === "tools") {
+      throw new Error(
+        `Produit non vendable : ${meta.name || item.productId}`
+      );
+    }
   }
 
   if (expirationOn) {

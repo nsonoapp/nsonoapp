@@ -1,13 +1,14 @@
 // auth.js — Auth lié à la même instance Firebase que Firestore (firebase.js)
 
 import { app, db, doc, getDoc } from "./firebase.js";
+import { getSingleCompany, isCompanyGeneralAdmin } from "../admin/js/company-auth.js";
 
 import {
   getAuth as getFirebaseAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut,
+  signOut as firebaseSignOut,
   sendPasswordResetEmail,
   updatePassword,
   updateProfile,
@@ -27,7 +28,17 @@ import {
 
 const auth = getFirebaseAuth(app);
 const PUBLIC_PAGES = new Set(["login.html", "signup.html", "waiting.html", "404.html"]);
-const ADMIN_ONLY_PAGES = new Set(["stats.html", "admin.html", "entities.html", "roles.html", "approvals.html", "onboarding.html"]);
+const ADMIN_ONLY_PAGES = new Set([
+  "stats.html",
+  "admin.html",
+  "entities.html",
+  "roles.html",
+  "approvals.html",
+  "onboarding.html",
+  "company.html",
+  "settings.html",
+  "logs.html"
+]);
 const MASTER_ONLY_PAGES = new Set(["admin/stats.html"]);
 let authGuardStarted = false;
 
@@ -51,6 +62,9 @@ function isApprovedProfile(profile) {
   if (!profile) {
     return false;
   }
+  if (!profile.approvalStatus) {
+    return true;
+  }
   return profile.approvalStatus === "approved";
 }
 
@@ -65,6 +79,12 @@ function redirectTo(path) {
   window.location.replace(path);
 }
 
+export async function signOut(authInstance = auth) {
+  const { clearNsonoSession } = await import("./auth-flow.js");
+  clearNsonoSession();
+  await firebaseSignOut(authInstance);
+}
+
 function startAuthGuard() {
   if (authGuardStarted) {
     return;
@@ -77,6 +97,8 @@ function startAuthGuard() {
     const publicPage = isPublicPage(page);
 
     if (!user) {
+      const { clearNsonoSession } = await import("./auth-flow.js");
+      clearNsonoSession();
       if (!publicPage) {
         redirectTo("login.html");
       }
@@ -91,17 +113,20 @@ function startAuthGuard() {
     }
 
     const profile = profileSnap.data();
+    const company = await getSingleCompany().catch(() => null);
+    const isGeneralAdmin = isCompanyGeneralAdmin(company, user.uid);
     const approved = isApprovedProfile(profile);
     const active = profile?.isActive === true;
-    const allowedRole = hasBusinessRole(profile);
+    const allowedRole = hasBusinessRole(profile) || isGeneralAdmin;
     const allowedBusinessAccess = approved && active && allowedRole;
 
     if (allowedBusinessAccess) {
-      import("./auth-flow.js")
-        .then(module => module.restoreNsonoSession(user.uid))
-        .catch(() => {
-          /* session NSONO optionnelle */
-        });
+      try {
+        const { restoreNsonoSession } = await import("./auth-flow.js");
+        await restoreNsonoSession(user.uid);
+      } catch {
+        /* session NSONO optionnelle */
+      }
     }
 
     if (page === "waiting.html") {
@@ -116,12 +141,13 @@ function startAuthGuard() {
       return;
     }
 
-    if (ADMIN_ONLY_PAGES.has(page) && profile?.role !== "admin") {
+    const canAccessAdminPages = profile?.role === "admin" || isGeneralAdmin;
+    if (ADMIN_ONLY_PAGES.has(page) && !canAccessAdminPages) {
       redirectTo("index.html");
       return;
     }
 
-    if (MASTER_ONLY_PAGES.has(path) && profile?.role !== "admin") {
+    if (MASTER_ONLY_PAGES.has(path) && !isGeneralAdmin) {
       redirectTo("admin/admin.html");
     }
   });
@@ -135,7 +161,6 @@ export {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut,
   sendPasswordResetEmail,
   updatePassword,
   updateProfile,

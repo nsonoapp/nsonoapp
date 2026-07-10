@@ -48,16 +48,31 @@ const db = initializeFirestore(app, {
 
 const enableIndexedDbPersistence = async () => true;
 
+import { getEntityContext } from "../admin/js/entity-context.js";
+import { SINGLE_COMPANY_ID } from "../admin/js/admin-collections.js";
+
+function scopeLogEntry(entry = {}) {
+  const ctx = getEntityContext();
+  const scoped = {
+    ...entry,
+    companyId: entry.companyId || ctx.companyId || SINGLE_COMPANY_ID
+  };
+  if (entry.entityId || ctx.entityId) {
+    scoped.entityId = entry.entityId || ctx.entityId;
+  }
+  return scoped;
+}
+
 async function writeLog(entry = {}) {
   if (!entry || typeof entry !== "object") {
     return null;
   }
 
   try {
-    const docRef = await addDoc(collection(db, "logs"), {
+    const docRef = await addDoc(collection(db, "logs"), scopeLogEntry({
       createdAt: Timestamp.now(),
       ...entry
-    });
+    }));
     return docRef.id;
   } catch (err) {
     console.warn("writeLog:", err);

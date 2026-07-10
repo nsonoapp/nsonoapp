@@ -234,6 +234,53 @@ input, select, textarea {
   font-weight: bold;
 }
 
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.modal-content label {
+  display: block;
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+
+.modal-content input,
+.modal-content select {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-secondary {
+  background: #eee;
+  color: #333;
+}
+
 @media (max-width: 640px) {
   .form-grid {
     grid-template-columns: 1fr;

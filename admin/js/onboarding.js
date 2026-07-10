@@ -111,6 +111,7 @@ async function bootstrapCompany(user) {
     await updateDoc(doc(db, ADMIN_COLLECTIONS.users, user.uid), {
       companyId: SINGLE_COMPANY_ID,
       entityId: entityRef.id,
+      role: "admin",
       approvalStatus: APPROVAL_STATUS.approved,
       isActive: true,
       roleIds: [],

@@ -10,6 +10,7 @@ import {
 } from "../firebase.js";
 import { COLLECTIONS, mapDocs } from "./collections.js";
 import { applyEntityScope } from "../nsono-scope.js";
+import { withEntityScope } from "../nsono-scope.js";
 
 function itemTime(item) {
   if (item.createdAt?.toDate) {
@@ -68,7 +69,9 @@ export async function loadFinanceByCollection(collectionName, dateRange = null) 
   } catch (err) {
     console.warn("[finance/data] query fallback", collectionName, err?.code || err?.message);
 
-    const snap = await getDocs(collection(db, collectionName));
+    const snap = await getDocs(
+      query(collection(db, collectionName), ...applyEntityScope([]))
+    );
     let items = sortByCreatedDesc(mapDocs(snap));
     items = filterByRangeClient(items, dateRange);
 
@@ -137,7 +140,7 @@ export async function recordStockFundingExpense({
 
   const ts = createdAt || Timestamp.now();
 
-  await addDoc(collection(db, COLLECTIONS.expenses), {
+  await addDoc(collection(db, COLLECTIONS.expenses), withEntityScope({
     reason,
     category,
     type: "auto",
@@ -150,5 +153,5 @@ export async function recordStockFundingExpense({
     createdBy,
     createdAt: ts,
     updatedAt: ts
-  });
+  }));
 }

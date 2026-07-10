@@ -173,7 +173,7 @@ async function createRole() {
 guardAdminPage("scope_roles").then(async result => {
   currentUserId = result.user.uid;
   permissions = result.permissions;
-  renderContextBanner();
+  await renderContextBanner();
   renderScopeCheckboxes();
   await loadRoles();
 });
