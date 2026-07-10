@@ -136,6 +136,9 @@ export function hasAnyScope(scopes, permissions) {
 }
 
 export function canAccessAdmin(permissions) {
+  if (permissions?.profile?.role === "admin") {
+    return true;
+  }
   return hasAnyScope(
     ["scope_admin", "scope_entities", "scope_roles", "scope_approvals"],
     permissions

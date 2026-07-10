@@ -147,6 +147,7 @@ export async function completeLogin(uid, role, action, userData = null, company 
   if (userData) {
     applyNsonoSession(userData, company);
     await loadUserPermissions(uid);
+    window.dispatchEvent(new CustomEvent("nsono:session-ready", { detail: { uid } }));
   }
   await writeLog({
     userId: uid,
@@ -169,6 +170,7 @@ export async function restoreNsonoSession(uid) {
   const company = await getSingleCompany().catch(() => null);
   applyNsonoSession(userData, company);
   await loadUserPermissions(uid);
+  window.dispatchEvent(new CustomEvent("nsono:session-ready", { detail: { uid } }));
 }
 
 export async function ensureFirestoreUser(user, options = {}) {

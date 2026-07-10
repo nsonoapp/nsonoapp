@@ -19,3 +19,7 @@
 ## 4. Communication
 - Sois concis et professionnel. Pas de "blabla".
 - Priorise toujours la sécurité (Firestore Rules + logique côté client).
+
+## 5. Recommandations
+    - lis tous les mdc a chaque fois pour pas aller hors cadre
+    - aussi lis tous fichiers qui sont en liaision et/ou comminication / besion  avant de modifier fichier concerné

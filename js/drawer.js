@@ -1,3 +1,5 @@
+import { getAuth, onAuthStateChanged } from "./auth.js";
+
 const ADMIN_SECTION = {
   title: "Administration",
   items: [
@@ -12,6 +14,32 @@ const ADMIN_SECTION = {
 const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)");
 let drawerMqBound = false;
 let drawerUiBound = false;
+let adminInjectionBound = false;
+
+function resolveDrawerUid() {
+  const storedUid = localStorage.getItem("userId");
+  if (storedUid) {
+    return storedUid;
+  }
+  return getAuth().currentUser?.uid || "";
+}
+
+function canShowAdminSection(permissions, canAccessAdmin) {
+  if (canAccessAdmin(permissions)) {
+    return true;
+  }
+  if (permissions?.profile?.role === "admin") {
+    return true;
+  }
+  return localStorage.getItem("userRole") === "admin";
+}
+
+function resolveMasterFlag(isMasterAdmin) {
+  if (typeof isMasterAdmin === "function") {
+    return isMasterAdmin();
+  }
+  return localStorage.getItem("nsono_isMasterAdmin") === "1";
+}
 
 function getBasePath() {
   const parts = location.pathname.split("/").filter(Boolean);
@@ -198,9 +226,8 @@ function injectAdminLinks() {
     return;
   }
 
-  const uid = localStorage.getItem("userId");
+  const uid = resolveDrawerUid();
   if (!uid) {
-    adminNav.replaceChildren();
     return;
   }
 
@@ -216,15 +243,44 @@ function injectAdminLinks() {
       }))
     )
     .then(({ canAccessAdmin, permissions, isMasterAdmin }) => {
-      if (!canAccessAdmin(permissions)) {
+      if (!canShowAdminSection(permissions, canAccessAdmin)) {
         adminNav.replaceChildren();
         return;
       }
-      renderAdminNav(adminNav, isMasterAdmin());
+      renderAdminNav(adminNav, resolveMasterFlag(isMasterAdmin));
     })
     .catch(() => {
+      if (localStorage.getItem("userRole") === "admin") {
+        renderAdminNav(adminNav, resolveMasterFlag());
+        return;
+      }
       adminNav.replaceChildren();
     });
+}
+
+function bindAdminInjection() {
+  if (adminInjectionBound) {
+    injectAdminLinks();
+    return;
+  }
+  adminInjectionBound = true;
+
+  injectAdminLinks();
+
+  onAuthStateChanged(getAuth(), user => {
+    if (!user) {
+      document.getElementById("nsonoDrawerAdmin")?.replaceChildren();
+      return;
+    }
+
+    if (!localStorage.getItem("userId")) {
+      localStorage.setItem("userId", user.uid);
+    }
+
+    injectAdminLinks();
+  });
+
+  window.addEventListener("nsono:session-ready", injectAdminLinks);
 }
 
 export function initDrawerNavigation() {
@@ -232,4 +288,4 @@ export function initDrawerNavigation() {
 }
 
 initDrawerChrome();
-injectAdminLinks();
+bindAdminInjection();
