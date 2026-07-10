@@ -41,8 +41,8 @@ const googleLoginBtn = document.getElementById("googleLoginBtn");
 
 initPasswordToggles();
 
-async function resolveCompanyGate(userData) {
-  const uid = userData?.userId || userData?.id || "";
+async function resolveCompanyGate(userData, authUid = "") {
+  const uid = authUid || userData?.userId || userData?.id || getAuth().currentUser?.uid || "";
   const companyAccess = await validateCompanyAccess({
     companyIdentifier: companyNameInput?.value.trim(),
     companyPassword: companyPasswordInput?.value || "",
@@ -135,7 +135,7 @@ bindFormAction(loginForm, async () => {
       return;
     }
 
-    const companyAccess = await resolveCompanyGate(userData);
+    const companyAccess = await resolveCompanyGate(userData, userCredential.user.uid);
     await redirectAfterLogin(userData, "login", companyAccess);
   } catch (err) {
     console.error("[login] erreur:", err?.code || err?.message, err);
@@ -160,7 +160,7 @@ async function handleGoogleLogin() {
       userData = await ensureFirestoreUser(result.user, { isActive: true });
     }
 
-    const companyAccess = await resolveCompanyGate(userData);
+    const companyAccess = await resolveCompanyGate(userData, result.user.uid);
     await redirectAfterLogin(userData, "google_login", companyAccess);
   } catch (err) {
     console.error("[login] Google erreur:", err?.code || err?.message, err);

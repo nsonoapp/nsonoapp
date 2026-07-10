@@ -1,4 +1,4 @@
-const CACHE_NAME = "NSONO V6";
+const CACHE_NAME = "NSONO V7";
 const BASE_PATH =
   self.location.pathname.replace(/\/service-worker\.js$/, "") || "";
 const withBase = (path) => {

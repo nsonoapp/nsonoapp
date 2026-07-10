@@ -89,6 +89,21 @@ export async function resolveEntityByName(companyId, entityIdentifier) {
   return null;
 }
 
+async function hasCompanySecret() {
+  const snap = await getDoc(
+    doc(db, ADMIN_COLLECTIONS.companySecrets, SINGLE_COMPANY_ID)
+  );
+  return snap.exists();
+}
+
+async function cleanupAuthProbe(probeRef) {
+  try {
+    await deleteDoc(probeRef);
+  } catch {
+    /* nettoyage best-effort */
+  }
+}
+
 export async function verifyCompanyPasswordViaRules(companyId, plainPassword) {
   if (companyId !== SINGLE_COMPANY_ID) {
     return false;
@@ -114,14 +129,10 @@ export async function verifyCompanyPasswordViaRules(companyId, plainPassword) {
       uid,
       createdAt: Timestamp.now()
     });
-    await deleteDoc(probeRef);
+    await cleanupAuthProbe(probeRef);
     return true;
   } catch {
-    try {
-      await deleteDoc(probeRef);
-    } catch {
-      /* sonde refusée */
-    }
+    await cleanupAuthProbe(probeRef);
     return false;
   }
 }
@@ -152,14 +163,10 @@ export async function verifyEntityPasswordViaRules(entityId, plainPassword) {
       uid,
       createdAt: Timestamp.now()
     });
-    await deleteDoc(probeRef);
+    await cleanupAuthProbe(probeRef);
     return true;
   } catch {
-    try {
-      await deleteDoc(probeRef);
-    } catch {
-      /* sonde refusée */
-    }
+    await cleanupAuthProbe(probeRef);
     return false;
   }
 }
@@ -199,9 +206,19 @@ export async function resolveCompanyAccess({
     return { ok: false, error: "company_not_found", company: null };
   }
 
+  const effectiveUserId = String(
+    userId || getAuth().currentUser?.uid || ""
+  ).trim();
+  const isGeneralAdmin = isCompanyGeneralAdmin(matched, effectiveUserId);
+
   const companyPasswordValue = String(companyPassword || "");
   if (!companyPasswordValue) {
     return { ok: false, error: "company_password_required", company: null };
+  }
+
+  const secretExists = await hasCompanySecret();
+  if (!secretExists) {
+    return { ok: false, error: "company_password_invalid", company: null };
   }
 
   const companyPasswordOk = await verifyCompanyPasswordViaRules(
@@ -212,8 +229,13 @@ export async function resolveCompanyAccess({
     return { ok: false, error: "company_password_invalid", company: null };
   }
 
-  if (isCompanyGeneralAdmin(matched, userId)) {
-    return { ok: true, company: matched, entity: null, isGeneralAdmin: true };
+  if (isGeneralAdmin) {
+    return {
+      ok: true,
+      company: matched,
+      entity: null,
+      isGeneralAdmin: true
+    };
   }
 
   const entityKey = String(entityIdentifier || "").trim();
