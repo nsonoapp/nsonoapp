@@ -76,11 +76,29 @@ header .status{
   font-size:13px;
 }
 
+.ranking-status{
+  font-size:12px;
+  color:#9fd4b5;
+  margin-bottom:14px;
+}
+
 .kpi-grid{
   display:grid;
   grid-template-columns:1fr;
   gap:10px;
   margin-bottom:20px;
+}
+
+@media(min-width:768px){
+  .kpi-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(min-width:1024px){
+  .kpi-grid{
+    grid-template-columns:repeat(4,1fr);
+  }
 }
 
 .kpi-card{
@@ -124,6 +142,99 @@ header .status{
 
 .section-title h2{
   font-size:18px;
+}
+
+.section-count{
+  font-size:12px;
+  color:#aaa;
+  background:rgba(255,255,255,0.06);
+  border-radius:999px;
+  padding:4px 10px;
+}
+
+.section-note{
+  font-size:12px;
+  color:#9a9a9a;
+  margin:-6px 0 12px;
+  line-height:1.45;
+}
+
+/* TABLE */
+
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,0.06);
+  background:#151515;
+  margin-bottom:28px;
+}
+
+.ranking-table{
+  width:100%;
+  min-width:760px;
+  border-collapse:collapse;
+}
+
+.ranking-table th,
+.ranking-table td{
+  padding:12px 10px;
+  text-align:left;
+  font-size:13px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  vertical-align:middle;
+}
+
+.ranking-table th{
+  position:sticky;
+  top:0;
+  background:#1b1b1b;
+  color:#d4af37;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  z-index:1;
+}
+
+.ranking-table tbody tr:hover{
+  background:rgba(255,255,255,0.03);
+}
+
+.ranking-table .cell-name{
+  font-weight:700;
+  max-width:220px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.ranking-table .table-empty{
+  text-align:center;
+  color:#888;
+  padding:24px;
+}
+
+.ranking-table .row-low{
+  background:rgba(255,165,0,0.05);
+}
+
+.ranking-table .row-critical{
+  background:rgba(255,0,0,0.07);
+}
+
+.stock-state.low{
+  color:#ffb347;
+  font-weight:700;
+}
+
+.stock-state.critical{
+  color:#ff6b6b;
+  font-weight:700;
+}
+
+.stock-state.ok{
+  color:#9fd4b5;
 }
 
 /* GRID */
@@ -232,16 +343,66 @@ header .status{
     rgba(255,0,0,0.18);
 }
 
+.rank-card.profit{
+  background:
+    linear-gradient(
+      135deg,
+      rgba(11,61,46,0.35),
+      rgba(255,255,255,0.03)
+    );
+  border:1px solid rgba(76,175,130,0.25);
+}
+
+.rank-card.revenue{
+  background:
+    linear-gradient(
+      135deg,
+      rgba(52,120,220,0.18),
+      rgba(255,255,255,0.03)
+    );
+  border:1px solid rgba(96,165,250,0.22);
+}
+
+.rank-card.muted{
+  background:#171717;
+  border:1px solid rgba(255,255,255,0.08);
+}
+
 /* TOP */
 
 .card-top{
   display:flex;
   justify-content:space-between;
-  align-items:center;
+  align-items:flex-start;
 
   margin-bottom:10px;
 
   gap:10px;
+}
+
+.card-badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  justify-content:flex-end;
+}
+
+.stock-badge{
+  font-size:10px;
+  font-weight:700;
+  border-radius:999px;
+  padding:4px 8px;
+  white-space:nowrap;
+}
+
+.stock-badge.low{
+  background:rgba(255,165,0,0.15);
+  color:#ffb347;
+}
+
+.stock-badge.critical{
+  background:rgba(255,0,0,0.16);
+  color:#ff7b7b;
 }
 
 .product-name{
@@ -430,9 +591,14 @@ header .status{
     <div class="kpi-sub" id="kpiTopCaSub">—</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-title">Top profit</div>
+    <div class="kpi-title">Top bénéfice</div>
     <div class="kpi-value" id="kpiTopProfitValue">—</div>
     <div class="kpi-sub" id="kpiTopProfitSub">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-title">Meilleure marge</div>
+    <div class="kpi-value" id="kpiTopMarginValue">—</div>
+    <div class="kpi-sub" id="kpiTopMarginSub">—</div>
   </div>
   <div class="kpi-card">
     <div class="kpi-title">Produit à risque</div>
@@ -441,39 +607,79 @@ header .status{
   </div>
 </section>
 
-<!-- TOP PRODUCTS -->
+<p class="ranking-status" id="rankingStatus" aria-live="polite"></p>
 
-<section class="section">
-
+<section class="section" aria-labelledby="tableTitle">
   <div class="section-title">
-    <h2>🥇 Top Produits</h2>
+    <h2 id="tableTitle">📊 Tableau général — ventes</h2>
   </div>
+  <p class="section-note">Tri automatique par volume de ventes (du plus vendu au moins vendu). Bénéfices calculés depuis <code>sale_items.profit</code> des ventes actives uniquement.</p>
 
-  <div class="rank-grid" id="topProducts">
-
-    <!-- JS -->
-
+  <div class="table-wrap">
+    <table class="ranking-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Produit</th>
+          <th>Qté</th>
+          <th>CA</th>
+          <th>Bénéfice</th>
+          <th>Marge</th>
+          <th>Stock</th>
+          <th>État stock</th>
+        </tr>
+      </thead>
+      <tbody id="rankingTableBody"></tbody>
+    </table>
   </div>
-
 </section>
 
-<!-- LOW PRODUCTS -->
-
-<section class="section">
-
+<section class="section" aria-labelledby="volumeTitle">
   <div class="section-title">
-    <h2>⚠️ Produits Faibles</h2>
+    <h2 id="volumeTitle">🥇 Plus vendus</h2>
+    <span class="section-count" id="volumeCount">0</span>
   </div>
-
-  <div class="rank-grid" id="lowProducts">
-
-    <!-- JS -->
-
-  </div>
-
+  <p class="section-note">Classement par quantité vendue sur la période.</p>
+  <div class="rank-grid" id="sectionVolume"></div>
 </section>
 
-<nav>
+<section class="section" aria-labelledby="profitTitle">
+  <div class="section-title">
+    <h2 id="profitTitle">💰 Plus rentables</h2>
+    <span class="section-count" id="profitCount">0</span>
+  </div>
+  <p class="section-note">Classement par bénéfice total, puis marge. Un produit très vendu mais peu rentable ne domine pas cette section.</p>
+  <div class="rank-grid" id="sectionProfit"></div>
+</section>
+
+<section class="section" aria-labelledby="revenueTitle">
+  <div class="section-title">
+    <h2 id="revenueTitle">📈 Plus gros CA</h2>
+    <span class="section-count" id="revenueCount">0</span>
+  </div>
+  <p class="section-note">Classement par chiffre d'affaires (prix × quantité sur les lignes de vente).</p>
+  <div class="rank-grid" id="sectionRevenue"></div>
+</section>
+
+<section class="section" aria-labelledby="leastTitle">
+  <div class="section-title">
+    <h2 id="leastTitle">📉 Moins vendus</h2>
+    <span class="section-count" id="leastCount">0</span>
+  </div>
+  <p class="section-note">Produits avec ventes faibles sur la période (hors stock).</p>
+  <div class="rank-grid" id="sectionLeast"></div>
+</section>
+
+<section class="section" aria-labelledby="stockTitle">
+  <div class="section-title">
+    <h2 id="stockTitle">⚠️ Stock faible / critique</h2>
+    <span class="section-count" id="stockCount">0</span>
+  </div>
+  <p class="section-note">Produits sous le seuil d'alerte ou en rupture. Priorité aux stocks critiques.</p>
+  <div class="rank-grid" id="sectionStock"></div>
+</section>
+
+<nav class="bottom-nav">
   <a class="nav-item" data-page="index.html" href="index.html">
     🛒 Vente
   </a>
