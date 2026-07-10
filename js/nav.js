@@ -52,14 +52,27 @@ function ensureAppShell() {
     drawer = document.createElement("aside");
     drawer.id = "nsonoDrawer";
     drawer.setAttribute("aria-hidden", "true");
+
+    const brand = document.createElement("div");
+    brand.id = "nsonoDrawerBrand";
+    brand.className = "drawer-brand";
+
+    const scroll = document.createElement("div");
+    scroll.className = "drawer-scroll";
+
     const nav = document.createElement("nav");
     nav.id = "nsonoDrawerNav";
-    drawer.appendChild(nav);
+    nav.className = "drawer-nav";
+    nav.setAttribute("aria-label", "Navigation principale");
+
+    const adminNav = document.createElement("nav");
+    adminNav.id = "nsonoDrawerAdmin";
+    adminNav.className = "drawer-admin-slot";
+    adminNav.setAttribute("aria-label", "Administration");
+
+    scroll.append(nav, adminNav);
+    drawer.append(brand, scroll);
     document.body.appendChild(drawer);
-  } else if (!document.getElementById("nsonoDrawerNav")) {
-    const nav = document.createElement("nav");
-    nav.id = "nsonoDrawerNav";
-    drawer.replaceChildren(nav);
   }
 
   let main = document.getElementById("nsonoMain");
