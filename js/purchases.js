@@ -111,6 +111,10 @@ function getSelectedPurchaseFundingType() {
   return document.querySelector('input[name="purchaseFundingType"]:checked')?.value || "";
 }
 
+function isToolsProduct(product) {
+  return product?.stockType === "tools";
+}
+
 function getEffectiveUnitPrice(productId, unitPriceInput) {
   const product = allProducts.find(p => p.id === productId);
 
@@ -951,7 +955,8 @@ productSelect.appendChild(defaultOption);
     // AJOUT DIRECT AU SELECT
 const opt = document.createElement('option');
 opt.value = docSnap.id;
-opt.textContent = `${p.name} ${p.variant ? "(" + p.variant + ")" : ""}`;
+const toolSuffix = p.stockType === "tools" ? " [Outil]" : "";
+opt.textContent = `${p.name}${p.variant ? " (" + p.variant + ")" : ""}${toolSuffix}`;
 productSelect.appendChild(opt);
   });
 
@@ -959,6 +964,13 @@ productSelect.appendChild(opt);
 }
 
 function calcProductBenefit(product) {
+  if (isToolsProduct(product)) {
+    return {
+      unitMargin: 0,
+      totalBenefit: 0
+    };
+  }
+
   const buy = Number(product.price_buy || 0);
   const minPrice =
     Number(product.price_min) ||
@@ -980,13 +992,15 @@ function updateBenefitSummary(list) {
 
   if (!strip || !totalEl) return;
 
-  const total = list.reduce(
-    (sum, p) => sum + calcProductBenefit(p).totalBenefit,
-    0
-  );
+  const total = list
+    .filter(p => !isToolsProduct(p))
+    .reduce(
+      (sum, p) => sum + calcProductBenefit(p).totalBenefit,
+      0
+    );
 
   const withMargin = list.filter(
-    p => calcProductBenefit(p).unitMargin > 0
+    p => !isToolsProduct(p) && calcProductBenefit(p).unitMargin > 0
   );
 
   const avgUnit = withMargin.length
@@ -1012,6 +1026,7 @@ function renderStock(list) {
   list.forEach(p => {
 
     const tr = document.createElement('tr');
+    const toolsProduct = isToolsProduct(p);
 
     // --- NAME ---
     const nameTd = document.createElement('td');
@@ -1022,6 +1037,15 @@ function renderStock(list) {
 
     nameTd.textContent =
       `${p.name}${variantText}`;
+
+    if (toolsProduct) {
+      const badge = document.createElement("span");
+      badge.textContent = " Outil";
+      badge.style.fontSize = "11px";
+      badge.style.color = "#0B3D2E";
+      badge.style.fontWeight = "700";
+      nameTd.appendChild(badge);
+    }
 
     // --- STOCK ---
     const stockTd = document.createElement('td');
@@ -1052,9 +1076,13 @@ function renderStock(list) {
 
     const benefitTd = document.createElement("td");
     benefitTd.className = "benefit-cell";
-    const { unitMargin, totalBenefit } = calcProductBenefit(p);
-    benefitTd.textContent =
-      `${unitMargin.toFixed(2)} / ${totalBenefit.toFixed(2)} ${CURRENCY_SYMBOL}`;
+    if (toolsProduct) {
+      benefitTd.textContent = "—";
+    } else {
+      const { unitMargin, totalBenefit } = calcProductBenefit(p);
+      benefitTd.textContent =
+        `${unitMargin.toFixed(2)} / ${totalBenefit.toFixed(2)} ${CURRENCY_SYMBOL}`;
+    }
 
     // --- ACTION ---
     const actionTd = document.createElement('td');

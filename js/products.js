@@ -51,6 +51,7 @@ const productFundingFields = document.getElementById("productFundingFields");
 const productMinOfflineField = document.getElementById("productMinOfflineField");
 const productExpirationFields = document.getElementById("productExpirationFields");
 const productExpirationDateField = document.getElementById("productExpirationDateField");
+const productSalesPriceFields = document.getElementById("productSalesPriceFields");
 const confirmModal = document.getElementById("confirmModal");
 const confirmModalTitle = document.getElementById("confirmModalTitle");
 const confirmModalMessage = document.getElementById("confirmModalMessage");
@@ -182,6 +183,30 @@ function toggleOfflineFields() {
   }
 }
 
+function getSelectedStockType() {
+  const stockTypeRaw = document.getElementById("productStockType")?.value || "sales";
+  return stockTypeRaw === "tools" ? "tools" : "sales";
+}
+
+function toggleSalesPriceFields() {
+  const isTools = getSelectedStockType() === "tools";
+
+  if (productSalesPriceFields) {
+    productSalesPriceFields.classList.toggle("field-hidden", isTools);
+  }
+
+  if (isTools) {
+    const sellInput = document.getElementById("productPriceSell");
+    const minInput = document.getElementById("productPriceMin");
+    if (sellInput) {
+      sellInput.value = "";
+    }
+    if (minInput) {
+      minInput.value = "";
+    }
+  }
+}
+
 function closeProductModal() {
   if (!productModal) return;
   productModal.classList.remove("show");
@@ -207,13 +232,15 @@ function openProductModal(mode, data = null) {
   document.getElementById("productVariant").value = data?.variant || "";
   document.getElementById("productImageUrl").value = data?.imageUrl || "";
   document.getElementById("productPriceBuy").value = data?.price_buy ?? "";
-  document.getElementById("productPriceSell").value = data?.price_sell ?? "";
+  const isToolsProduct = data?.stockType === "tools";
+  document.getElementById("productPriceSell").value =
+    isToolsProduct ? "" : (data?.price_sell ?? "");
   document.getElementById("productPriceMin").value =
-    data?.price_min ?? data?.price_sell ?? "";
+    isToolsProduct ? "" : (data?.price_min ?? data?.price_sell ?? "");
 
   const stockTypeSelect = document.getElementById("productStockType");
   if (stockTypeSelect) {
-    stockTypeSelect.value = data?.stockType === "tools" ? "tools" : "sales";
+    stockTypeSelect.value = isToolsProduct ? "tools" : "sales";
   }
 
   const stockInput = document.getElementById("productStockInitial");
@@ -265,6 +292,7 @@ function openProductModal(mode, data = null) {
   }
 
   toggleProductExpirationDateField();
+  toggleSalesPriceFields();
   setProductModalError("");
   productModal.classList.add("show");
   productModal.setAttribute("aria-hidden", "false");
@@ -308,6 +336,7 @@ function readProductForm() {
 
   const stockTypeRaw = document.getElementById("productStockType")?.value || "sales";
   const stockType = stockTypeRaw === "tools" ? "tools" : "sales";
+  const isTools = stockType === "tools";
 
   return {
     name: sanitizeText(
@@ -323,12 +352,12 @@ function readProductForm() {
     price_buy: parseFloat(
       document.getElementById("productPriceBuy")?.value
     ),
-    price_sell: parseFloat(
-      document.getElementById("productPriceSell")?.value
-    ),
-    price_min: parseFloat(
-      document.getElementById("productPriceMin")?.value
-    ),
+    price_sell: isTools
+      ? 0
+      : parseFloat(document.getElementById("productPriceSell")?.value),
+    price_min: isTools
+      ? 0
+      : parseFloat(document.getElementById("productPriceMin")?.value),
     stock,
     offlineBlocked,
     minOfflineStock,
@@ -345,12 +374,13 @@ function readProductForm() {
 }
 
 function validateProductForm(data, mode) {
+  const isTools = data.stockType === "tools";
+
   if (
     !data.name ||
     !data.variant ||
     isNaN(data.price_buy) ||
-    isNaN(data.price_sell) ||
-    isNaN(data.price_min) ||
+    (!isTools && (isNaN(data.price_sell) || isNaN(data.price_min))) ||
     (mode === "add" && isNaN(data.stock))
   ) {
     throw new Error("Valeurs invalides");
@@ -363,12 +393,14 @@ function validateProductForm(data, mode) {
     throw new Error("URL image invalide");
   }
 
-  if (data.price_min <= data.price_buy) {
-    throw new Error("Prix minimum invalide");
-  }
+  if (!isTools) {
+    if (data.price_min <= data.price_buy) {
+      throw new Error("Prix minimum invalide");
+    }
 
-  if (data.price_sell < data.price_min) {
-    throw new Error("Prix vente invalide");
+    if (data.price_sell < data.price_min) {
+      throw new Error("Prix vente invalide");
+    }
   }
 
   if (mode === "add" && data.stock < 0) {
@@ -650,11 +682,16 @@ function renderProducts(products) {
 
     // PRICE SELL
     const tdSell = document.createElement("td");
-    tdSell.textContent = `${priceSell.toFixed(2)}${CURRENCY_SYMBOL}`;
+    const isTools = p.stockType === "tools";
+    tdSell.textContent = isTools
+      ? "—"
+      : `${priceSell.toFixed(2)}${CURRENCY_SYMBOL}`;
 
     // PRICE MIN
     const tdMin = document.createElement("td");
-    tdMin.textContent = `${priceMin.toFixed(2)}${CURRENCY_SYMBOL}`;
+    tdMin.textContent = isTools
+      ? "—"
+      : `${priceMin.toFixed(2)}${CURRENCY_SYMBOL}`;
 
     // STOCK
     const tdStock = document.createElement("td");
@@ -790,6 +827,10 @@ document.getElementById("productCancelBtn")?.addEventListener("click", () => {
 
 document.getElementById("productOfflineAllowed")?.addEventListener("change", () => {
   toggleOfflineFields();
+});
+
+document.getElementById("productStockType")?.addEventListener("change", () => {
+  toggleSalesPriceFields();
 });
 
 document.getElementById("productHasExpiration")?.addEventListener("change", () => {
