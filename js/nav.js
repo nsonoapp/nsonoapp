@@ -1,5 +1,183 @@
-// NAV — shell drawer statique + marquage page active
+// NAV — shell drawer statique + rendu public synchrone (sans role / sans Firestore)
 const currentPage = location.pathname.split("/").pop();
+
+const DRAWER_HUB_ITEM = {
+  href: "index.html",
+  title: "NSONO",
+  subtitle: "Espace de travail",
+  icon: "◆"
+};
+
+const DRAWER_PUBLIC_SECTIONS = [
+  {
+    title: "Ventes & stock",
+    items: [
+      { href: "index.html", label: "Vente", icon: "🛒" },
+      { href: "products.html", label: "Produits", icon: "📦" },
+      { href: "tools.html", label: "Outils", icon: "🧰" },
+      { href: "purchases.html", label: "Achats", icon: "📥" },
+      { href: "vendus.html", label: "Vendus", icon: "📋" },
+      { href: "ranging.html", label: "Ranking", icon: "🏆" }
+    ]
+  },
+  {
+    title: "Finances",
+    items: [
+      { href: "finances.html", label: "Finances", icon: "💰" },
+      { href: "expenses.html", label: "Depenses", icon: "💸" },
+      { href: "debts.html", label: "Dettes", icon: "🧾" },
+      { href: "losses.html", label: "Pertes", icon: "📉" }
+    ]
+  },
+  {
+    title: "Suivi",
+    items: [
+      { href: "logs.html", label: "Logs", icon: "🧾" },
+      { href: "loader.html", label: "Vue rapide", icon: "📩" }
+    ]
+  },
+  {
+    title: "Systeme",
+    items: [
+      { href: "help.html", label: "Aide", icon: "🤝" },
+      { href: "login.html", label: "Connexion", icon: "🔐" }
+    ]
+  }
+];
+
+function resolveDrawerHref(href) {
+  const parts = location.pathname.split("/").filter(Boolean);
+  let base = "";
+  if (parts.length > 1) {
+    const depth = parts.length - 1;
+    base = parts[0] === "admin" ? "../".repeat(depth) : (depth > 1 ? "../".repeat(depth - 1) : "");
+  }
+  return base ? `${base}${href}` : href;
+}
+
+function createDrawerNode(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) {
+    el.className = className;
+  }
+  if (text !== undefined && text !== null) {
+    el.textContent = text;
+  }
+  return el;
+}
+
+function createDrawerPublicItem(item, isActive) {
+  const link = createDrawerNode("a", "drawer-item");
+  link.setAttribute("data-href", item.href);
+  link.href = resolveDrawerHref(item.href);
+
+  const icon = createDrawerNode("span", "drawer-item-icon");
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = item.icon || "•";
+
+  const label = createDrawerNode("span", "drawer-item-label", item.label);
+  const trail = createDrawerNode("span", "drawer-item-trail");
+  trail.setAttribute("aria-hidden", "true");
+  trail.textContent = "›";
+
+  if (isActive) {
+    link.classList.add("active");
+    link.setAttribute("aria-current", "page");
+  }
+
+  link.append(icon, label, trail);
+  return link;
+}
+
+function ensureDrawerDomShell() {
+  let drawer = document.getElementById("nsonoDrawer");
+  if (!drawer) {
+    return null;
+  }
+
+  let brand = document.getElementById("nsonoDrawerBrand");
+  let scroll = drawer.querySelector(".drawer-scroll");
+  let nav = document.getElementById("nsonoDrawerNav");
+  let adminNav = document.getElementById("nsonoDrawerAdmin");
+
+  if (brand && scroll && nav && adminNav) {
+    return { brand, nav };
+  }
+
+  drawer.replaceChildren();
+
+  brand = createDrawerNode("div", "drawer-brand");
+  brand.id = "nsonoDrawerBrand";
+
+  scroll = createDrawerNode("div", "drawer-scroll");
+  nav = createDrawerNode("nav", "drawer-nav");
+  nav.id = "nsonoDrawerNav";
+  nav.setAttribute("aria-label", "Navigation principale");
+
+  adminNav = createDrawerNode("nav", "drawer-admin-slot");
+  adminNav.id = "nsonoDrawerAdmin";
+  adminNav.setAttribute("aria-label", "Administration");
+
+  scroll.append(nav, adminNav);
+  drawer.append(brand, scroll);
+
+  return { brand, nav };
+}
+
+function renderDrawerPublicShell() {
+  const shell = ensureDrawerDomShell();
+  if (!shell) {
+    return;
+  }
+
+  const current = currentPage || "index.html";
+
+  if (shell.brand.dataset.nsonoPublicReady !== "1") {
+    shell.brand.replaceChildren();
+
+    const hubLink = createDrawerNode("a", "drawer-brand-link");
+    hubLink.href = resolveDrawerHref(DRAWER_HUB_ITEM.href);
+
+    const hubIcon = createDrawerNode("span", "drawer-brand-icon");
+    hubIcon.setAttribute("aria-hidden", "true");
+    hubIcon.textContent = DRAWER_HUB_ITEM.icon;
+
+    hubLink.append(
+      hubIcon,
+      createDrawerNode("span", "drawer-brand-title", DRAWER_HUB_ITEM.title),
+      createDrawerNode("span", "drawer-brand-subtitle", DRAWER_HUB_ITEM.subtitle)
+    );
+
+    shell.brand.appendChild(hubLink);
+    shell.brand.dataset.nsonoPublicReady = "1";
+  }
+
+  if (shell.nav.dataset.nsonoPublicReady === "1") {
+    return;
+  }
+
+  shell.nav.replaceChildren();
+  const fragment = document.createDocumentFragment();
+
+  DRAWER_PUBLIC_SECTIONS.forEach((section, sectionIndex) => {
+    if (sectionIndex > 0) {
+      fragment.appendChild(createDrawerNode("hr", "drawer-divider"));
+    }
+
+    const sectionWrap = createDrawerNode("div", "drawer-section");
+    sectionWrap.appendChild(createDrawerNode("div", "drawer-section-title", section.title));
+
+    section.items.forEach(item => {
+      const isActive = item.href === current;
+      sectionWrap.appendChild(createDrawerPublicItem(item, isActive));
+    });
+
+    fragment.appendChild(sectionWrap);
+  });
+
+  shell.nav.appendChild(fragment);
+  shell.nav.dataset.nsonoPublicReady = "1";
+}
 
 function resolveAssetPath(relativePath) {
   const parts = location.pathname.split("/").filter(Boolean);
@@ -37,6 +215,7 @@ function ensureHeaderToggle(header) {
 function ensureAppShell() {
   if (document.body.classList.contains("nsono-app")) {
     ensureHeaderToggle(document.querySelector("#nsonoMain header, header"));
+    renderDrawerPublicShell();
     return;
   }
 
@@ -92,6 +271,7 @@ function ensureAppShell() {
 
   document.body.classList.add("nsono-app");
   ensureHeaderToggle(main.querySelector("header"));
+  renderDrawerPublicShell();
 }
 
 function ensureDrawerScript() {

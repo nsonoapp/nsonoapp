@@ -16,7 +16,8 @@ import {
   resolveCompanyAccess,
   storeCompanySession,
   hasSingleCompany,
-  isCompanyGeneralAdmin
+  isCompanyGeneralAdmin,
+  getSingleCompany
 } from "../admin/js/company-auth.js";
 import { setEntityContext } from "../admin/js/entity-context.js";
 import {
@@ -153,6 +154,21 @@ export async function completeLogin(uid, role, action, userData = null, company 
     role,
     details: company?.id ? { companyId: company.id } : null
   });
+}
+
+export async function restoreNsonoSession(uid) {
+  if (!uid) {
+    return;
+  }
+
+  const userData = await loadUserProfile(uid);
+  if (!userData) {
+    return;
+  }
+
+  const company = await getSingleCompany().catch(() => null);
+  applyNsonoSession(userData, company);
+  await loadUserPermissions(uid);
 }
 
 export async function ensureFirestoreUser(user, options = {}) {

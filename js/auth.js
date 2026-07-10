@@ -96,6 +96,14 @@ function startAuthGuard() {
     const allowedRole = hasBusinessRole(profile);
     const allowedBusinessAccess = approved && active && allowedRole;
 
+    if (allowedBusinessAccess) {
+      import("./auth-flow.js")
+        .then(module => module.restoreNsonoSession(user.uid))
+        .catch(() => {
+          /* session NSONO optionnelle */
+        });
+    }
+
     if (page === "waiting.html") {
       if (allowedBusinessAccess) {
         redirectTo("index.html");

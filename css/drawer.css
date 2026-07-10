@@ -50,6 +50,24 @@
   box-sizing: border-box;
 }
 
+#nsonoDrawer,
+#nsonoDrawer .drawer-scroll,
+#nsonoDrawer #nsonoDrawerNav,
+#nsonoDrawer #nsonoDrawerAdmin,
+#nsonoDrawer .drawer-section {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+#nsonoDrawerNav > *,
+#nsonoDrawerAdmin > *,
+.drawer-section > *,
+.drawer-section .drawer-item {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 #nsonoDrawer.open {
   transform: translateX(0);
   visibility: visible;

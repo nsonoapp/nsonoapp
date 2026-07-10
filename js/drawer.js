@@ -1,53 +1,3 @@
-import {
-  canAccessAdmin,
-  loadUserPermissions
-} from "../admin/js/permissions.js";
-import { isMasterAdmin } from "../admin/js/entity-context.js";
-
-const HUB_ITEM = {
-  href: "index.html",
-  title: "NSONO",
-  subtitle: "Espace de travail",
-  icon: "◆"
-};
-
-const PUBLIC_SECTIONS = [
-  {
-    title: "Ventes & stock",
-    items: [
-      { href: "index.html", label: "Vente", icon: "🛒" },
-      { href: "products.html", label: "Produits", icon: "📦" },
-      { href: "tools.html", label: "Outils", icon: "🧰" },
-      { href: "purchases.html", label: "Achats", icon: "📥" },
-      { href: "vendus.html", label: "Vendus", icon: "📋" },
-      { href: "ranging.html", label: "Ranking", icon: "🏆" }
-    ]
-  },
-  {
-    title: "Finances",
-    items: [
-      { href: "finances.html", label: "Finances", icon: "💰" },
-      { href: "expenses.html", label: "Depenses", icon: "💸" },
-      { href: "debts.html", label: "Dettes", icon: "🧾" },
-      { href: "losses.html", label: "Pertes", icon: "📉" }
-    ]
-  },
-  {
-    title: "Suivi",
-    items: [
-      { href: "logs.html", label: "Logs", icon: "🧾" },
-      { href: "loader.html", label: "Vue rapide", icon: "📩" }
-    ]
-  },
-  {
-    title: "Systeme",
-    items: [
-      { href: "help.html", label: "Aide", icon: "🤝" },
-      { href: "login.html", label: "Connexion", icon: "🔐" }
-    ]
-  }
-];
-
 const ADMIN_SECTION = {
   title: "Administration",
   items: [
@@ -98,40 +48,6 @@ function createEl(tag, className, text) {
   return el;
 }
 
-function ensureDrawerStructure(drawer) {
-  if (!drawer) {
-    return null;
-  }
-
-  let brand = drawer.querySelector("#nsonoDrawerBrand");
-  let scroll = drawer.querySelector(".drawer-scroll");
-  let nav = document.getElementById("nsonoDrawerNav");
-  let adminNav = document.getElementById("nsonoDrawerAdmin");
-
-  if (brand && scroll && nav && adminNav) {
-    return { brand, scroll, nav, adminNav };
-  }
-
-  drawer.replaceChildren();
-
-  brand = createEl("div", "drawer-brand");
-  brand.id = "nsonoDrawerBrand";
-
-  scroll = createEl("div", "drawer-scroll");
-  nav = createEl("nav", "drawer-nav");
-  nav.id = "nsonoDrawerNav";
-  nav.setAttribute("aria-label", "Navigation principale");
-
-  adminNav = createEl("nav", "drawer-admin-slot");
-  adminNav.id = "nsonoDrawerAdmin";
-  adminNav.setAttribute("aria-label", "Administration");
-
-  scroll.append(nav, adminNav);
-  drawer.append(brand, scroll);
-
-  return { brand, scroll, nav, adminNav };
-}
-
 function createDrawerItem(item, isActive) {
   const link = createEl("a", "drawer-item");
   link.href = resolveHref(item.href);
@@ -141,7 +57,6 @@ function createDrawerItem(item, isActive) {
   icon.textContent = item.icon || "•";
 
   const label = createEl("span", "drawer-item-label", item.label);
-
   const trail = createEl("span", "drawer-item-trail");
   trail.setAttribute("aria-hidden", "true");
   trail.textContent = "›";
@@ -149,59 +64,54 @@ function createDrawerItem(item, isActive) {
   if (isActive) {
     link.classList.add("active");
     link.setAttribute("aria-current", "page");
+  } else {
+    link.classList.remove("active");
+    link.removeAttribute("aria-current");
   }
 
   link.append(icon, label, trail);
   return link;
 }
 
-function renderHub(brandEl) {
-  if (!brandEl) {
+function refreshPublicDrawerLinks() {
+  const nav = document.getElementById("nsonoDrawerNav");
+  const brand = document.getElementById("nsonoDrawerBrand");
+  if (!nav || nav.dataset.nsonoPublicReady !== "1") {
     return;
   }
 
-  brandEl.replaceChildren();
-
-  const link = createEl("a", "drawer-brand-link");
-  link.href = resolveHref(HUB_ITEM.href);
-
-  const icon = createEl("span", "drawer-brand-icon");
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = HUB_ITEM.icon;
-
-  const title = createEl("span", "drawer-brand-title", HUB_ITEM.title);
-  const subtitle = createEl("span", "drawer-brand-subtitle", HUB_ITEM.subtitle);
-
-  link.append(icon, title, subtitle);
-  brandEl.appendChild(link);
-}
-
-function renderPublicNav(nav) {
-  if (!nav) {
-    return;
-  }
-
-  nav.replaceChildren();
   const current = currentFile();
-  const fragment = document.createDocumentFragment();
-
-  PUBLIC_SECTIONS.forEach((section, sectionIndex) => {
-    if (sectionIndex > 0) {
-      fragment.appendChild(createEl("hr", "drawer-divider"));
+  nav.querySelectorAll(".drawer-item").forEach(link => {
+    const rawHref = link.getAttribute("data-href") || link.getAttribute("href") || "";
+    const file = rawHref.split("/").pop();
+    link.href = resolveHref(file ? file : rawHref);
+    const isActive = file === current;
+    link.classList.toggle("active", isActive);
+    if (isActive) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
     }
-
-    const sectionWrap = createEl("div", "drawer-section");
-    sectionWrap.appendChild(createEl("div", "drawer-section-title", section.title));
-
-    section.items.forEach(item => {
-      const isActive = item.href.endsWith(current);
-      sectionWrap.appendChild(createDrawerItem(item, isActive));
-    });
-
-    fragment.appendChild(sectionWrap);
   });
 
-  nav.appendChild(fragment);
+  const hub = brand?.querySelector(".drawer-brand-link");
+  if (hub) {
+    hub.href = resolveHref("index.html");
+  }
+}
+
+function initDrawerChrome() {
+  const drawer = document.getElementById("nsonoDrawer");
+  const toggle = document.getElementById("nsonoDrawerToggle");
+  const overlay = document.getElementById("nsonoDrawerOverlay");
+
+  if (!drawer) {
+    return;
+  }
+
+  refreshPublicDrawerLinks();
+  bindDrawerEvents(toggle, overlay, drawer);
+  applyResponsiveLayout(drawer, overlay);
 }
 
 function renderAdminNav(adminNav, isMaster) {
@@ -282,23 +192,7 @@ function bindDrawerEvents(toggle, overlay, drawer) {
   }
 }
 
-function renderStaticDrawer() {
-  const drawer = document.getElementById("nsonoDrawer");
-  const toggle = document.getElementById("nsonoDrawerToggle");
-  const overlay = document.getElementById("nsonoDrawerOverlay");
-  const structure = ensureDrawerStructure(drawer);
-
-  if (!structure) {
-    return;
-  }
-
-  renderHub(structure.brand);
-  renderPublicNav(structure.nav);
-  bindDrawerEvents(toggle, overlay, drawer);
-  applyResponsiveLayout(drawer, overlay);
-}
-
-async function injectAdminLinks() {
+function injectAdminLinks() {
   const adminNav = document.getElementById("nsonoDrawerAdmin");
   if (!adminNav) {
     return;
@@ -310,35 +204,32 @@ async function injectAdminLinks() {
     return;
   }
 
-  try {
-    const permissions = await loadUserPermissions(uid);
-    if (!canAccessAdmin(permissions)) {
+  Promise.all([
+    import("../admin/js/permissions.js"),
+    import("../admin/js/entity-context.js")
+  ])
+    .then(([{ canAccessAdmin, loadUserPermissions }, { isMasterAdmin }]) =>
+      loadUserPermissions(uid).then(permissions => ({
+        canAccessAdmin,
+        permissions,
+        isMasterAdmin
+      }))
+    )
+    .then(({ canAccessAdmin, permissions, isMasterAdmin }) => {
+      if (!canAccessAdmin(permissions)) {
+        adminNav.replaceChildren();
+        return;
+      }
+      renderAdminNav(adminNav, isMasterAdmin());
+    })
+    .catch(() => {
       adminNav.replaceChildren();
-      return;
-    }
-    renderAdminNav(adminNav, isMasterAdmin());
-  } catch {
-    adminNav.replaceChildren();
-  }
+    });
 }
 
 export function initDrawerNavigation() {
-  renderStaticDrawer();
+  initDrawerChrome();
 }
 
-async function bootstrapDrawer() {
-  renderStaticDrawer();
-  await injectAdminLinks();
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    bootstrapDrawer().catch(() => {
-      /* menu public deja affiche */
-    });
-  });
-} else {
-  bootstrapDrawer().catch(() => {
-    /* menu public deja affiche */
-  });
-}
+initDrawerChrome();
+injectAdminLinks();
