@@ -83,10 +83,19 @@ onAuthStateChanged(auth, async (user) => {
 
 const logoutBtn = el("logoutBtn");
 bindActionButton(logoutBtn, async () => {
+  const confirmed = window.confirm(
+    "Voulez-vous vraiment vous déconnecter ?"
+  );
+  if (!confirmed) {
+    return;
+  }
+
   try {
     await signOut(auth);
-  } finally {
     location.href = "login.html";
+  } catch (err) {
+    console.error(err);
+    window.alert("Erreur lors de la déconnexion. Réessayez.");
   }
 });
 
