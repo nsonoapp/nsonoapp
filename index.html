@@ -18,6 +18,28 @@
 
     body { background: #F5F5F5; color: #111; }
 
+    /* Drawer index — hors flux (évite bande vide si drawer.css en cache obsolète) */
+    #NSOSODrawerOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+    }
+    #NSOSODrawerOverlay.open {
+      pointer-events: auto;
+    }
+    #NSOSODrawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      transform: translateX(-100%);
+    }
+    #NSOSODrawer.open {
+      transform: translateX(0);
+      visibility: visible;
+    }
+
     header {
       background: #0B3D2E;
       color: white;

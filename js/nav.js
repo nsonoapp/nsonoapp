@@ -1,5 +1,6 @@
 // NAV — shell drawer + rendu public (support NSOSO* et nsono*)
 const currentPage = location.pathname.split("/").pop();
+const DRAWER_DESKTOP_MQ = window.matchMedia("(min-width: 1024px)");
 
 const DRAWER_HUB_ITEM = {
   href: "index.html",
@@ -44,6 +45,40 @@ const DRAWER_PUBLIC_SECTIONS = [
     ]
   }
 ];
+
+function setDrawerOpenState(drawer, overlay, open) {
+  if (!drawer) {
+    return;
+  }
+  drawer.classList.toggle("open", open);
+  drawer.setAttribute("aria-hidden", open ? "false" : "true");
+  if (overlay) {
+    overlay.classList.toggle("open", open);
+  }
+}
+
+function bindDrawerToggleImmediate() {
+  const shell = getDrawerShell();
+  const { toggle, drawer, overlay } = shell;
+  if (!toggle || !drawer || toggle.dataset.nsonoDrawerBound === "1") {
+    return;
+  }
+
+  toggle.dataset.nsonoDrawerBound = "1";
+
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (DRAWER_DESKTOP_MQ.matches) {
+      return;
+    }
+    setDrawerOpenState(drawer, overlay, !drawer.classList.contains("open"));
+  });
+
+  overlay?.addEventListener("click", () => {
+    setDrawerOpenState(drawer, overlay, false);
+  });
+}
 
 function drawerEl(...ids) {
   for (const id of ids) {
@@ -277,6 +312,7 @@ function ensureAppShell() {
     ensureOverlayForShell(shell);
     ensureHeaderToggle(shell.main.querySelector("header"));
     renderDrawerPublicShell();
+    bindDrawerToggleImmediate();
     return;
   }
 
@@ -339,6 +375,7 @@ function ensureAppShell() {
   markAppShellReady();
   ensureHeaderToggle(main.querySelector("header"));
   renderDrawerPublicShell();
+  bindDrawerToggleImmediate();
 }
 
 function ensureDrawerScript() {
@@ -355,6 +392,7 @@ function ensureDrawerScript() {
 
 async function bootAppNavigation() {
   ensureAppShell();
+  bindDrawerToggleImmediate();
   await ensureDrawerScript();
   window.dispatchEvent(new CustomEvent("nsono:drawer-shell-ready"));
 }
