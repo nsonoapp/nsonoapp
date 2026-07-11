@@ -22,7 +22,7 @@ import {
 } from "./admin-shared.js";
 import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
 import { getEntityContext, isMasterAdmin } from "./entity-context.js";
-import { hashCompanyPassword } from "./company-auth.js";
+import { hashCompanyPassword, verifyCompanyPasswordViaRules } from "./company-auth.js";
 import { APPROVAL_STATUS } from "./admin-constants.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
 
@@ -241,6 +241,13 @@ async function rotateCompanyPassword() {
       passwordHash,
       updatedAt: Timestamp.now()
     });
+
+    const verified = await verifyCompanyPasswordViaRules(SINGLE_COMPANY_ID, password);
+    if (!verified) {
+      notifyAdmin("adminDebug", "Échec vérification mot de passe société après enregistrement.", true);
+      return;
+    }
+
     await writeLog({
       userId: currentUserId,
       action: "company_password_rotate",

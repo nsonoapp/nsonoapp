@@ -1,0 +1,28 @@
+/* Critique — drawer hors flux (fallback si drawer.css en cache obsolète) */
+#nsonoDrawerOverlay,
+#NSOSODrawerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+}
+
+#nsonoDrawerOverlay.open,
+#NSOSODrawerOverlay.open {
+  pointer-events: auto;
+}
+
+#nsonoDrawer,
+#NSOSODrawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  transform: translateX(-100%);
+}
+
+#nsonoDrawer.open,
+#NSOSODrawer.open {
+  transform: translateX(0);
+  visibility: visible;
+}

@@ -16,6 +16,13 @@ const STORAGE_COMPANY_NAME = "nsono_companyName";
 
 export { SINGLE_COMPANY_ID };
 
+function normalizeLookupKey(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 export async function hashCompanyPassword(plainPassword) {
   const value = String(plainPassword || "");
   if (!value) {
@@ -48,12 +55,15 @@ export async function resolveCompanyByNameOrCode(identifier) {
     return null;
   }
 
-  const key = String(identifier || "").trim();
+  const key = normalizeLookupKey(identifier);
   if (!key) {
     return company;
   }
 
-  if (company.name === key || company.companyCode === key) {
+  if (
+    normalizeLookupKey(company.name) === key ||
+    normalizeLookupKey(company.companyCode) === key
+  ) {
     return company;
   }
 
@@ -62,6 +72,7 @@ export async function resolveCompanyByNameOrCode(identifier) {
 
 export async function resolveEntityByName(companyId, entityIdentifier) {
   const key = String(entityIdentifier || "").trim();
+  const normalizedKey = normalizeLookupKey(entityIdentifier);
   if (!companyId || !key) {
     return null;
   }
@@ -80,7 +91,7 @@ export async function resolveEntityByName(companyId, entityIdentifier) {
     if (
       data.companyId === companyId &&
       data.isActive !== false &&
-      String(data.name || "").trim() === key
+      normalizeLookupKey(data.name) === normalizedKey
     ) {
       return { id: item.id, ...data };
     }
@@ -205,7 +216,7 @@ export async function resolveCompanyAccess({
   }
 
   const companyPasswordOk = await verifyCompanyPasswordViaRules(
-    matched.id,
+    SINGLE_COMPANY_ID,
     companyPasswordValue
   );
   if (!companyPasswordOk) {
@@ -226,7 +237,7 @@ export async function resolveCompanyAccess({
     return { ok: false, error: "entity_required", company: null };
   }
 
-  const entity = await resolveEntityByName(matched.id, entityKey);
+  const entity = await resolveEntityByName(SINGLE_COMPANY_ID, entityKey);
   if (!entity) {
     return { ok: false, error: "entity_not_found", company: null };
   }
@@ -244,7 +255,7 @@ export async function resolveCompanyAccess({
     return { ok: false, error: "entity_password_invalid", company: null };
   }
 
-  return { ok: true, company: matched, entity };
+  return { ok: true, company: matched, entity, isGeneralAdmin: false };
 }
 
 export function storeCompanySession(companyId, companyName) {

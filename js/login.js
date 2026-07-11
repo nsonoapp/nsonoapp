@@ -22,6 +22,10 @@ import {
   assertUserCompanyMatch,
   isUserApproved
 } from "./auth-flow.js";
+import {
+  getSingleCompany,
+  isCompanyGeneralAdmin
+} from "../admin/js/company-auth.js";
 
 import { initPasswordToggles } from "./password-toggle.js";
 import { bindFormAction, bindActionButton } from "./utils/buttonManager.js";
@@ -38,16 +42,59 @@ const entityNameInput = document.getElementById("entityName");
 const entityPasswordInput = document.getElementById("entityPassword");
 const rememberMeCheckbox = document.getElementById("rememberMe");
 const googleLoginBtn = document.getElementById("googleLoginBtn");
+const entityFieldsGroup = document.getElementById("entityFieldsGroup");
+const loginHintEl = document.getElementById("loginHint");
 
 initPasswordToggles();
 
+function setEntityFieldsRequired(required) {
+  if (entityNameInput) {
+    entityNameInput.required = required;
+  }
+  if (entityPasswordInput) {
+    entityPasswordInput.required = required;
+  }
+  if (entityFieldsGroup) {
+    entityFieldsGroup.classList.toggle("optional", !required);
+  }
+  if (loginHintEl) {
+    loginHintEl.textContent = required
+      ? "Mot de passe société (company_secrets) obligatoire. Entité + mot de passe entité (entity_secrets) obligatoires pour les comptes locaux hors admins généraux."
+      : "Admin général : mot de passe société uniquement. Les champs entité sont ignorés.";
+  }
+}
+
+setEntityFieldsRequired(true);
+
 async function resolveCompanyGate(userData, authUid = "") {
   const uid = authUid || userData?.userId || userData?.id || getAuth().currentUser?.uid || "";
+  const company = await getSingleCompany();
+  const isMaster = isCompanyGeneralAdmin(company, uid);
+  setEntityFieldsRequired(!isMaster);
+
+  const companyIdentifier = companyNameInput?.value.trim() || "";
+  const companyPassword = companyPasswordInput?.value || "";
+  const entityIdentifier = entityNameInput?.value.trim() || "";
+  const entityPassword = entityPasswordInput?.value || "";
+
+  if (!companyPassword) {
+    throw new Error("company_password_required");
+  }
+
+  if (!isMaster) {
+    if (!entityIdentifier) {
+      throw new Error("entity_required");
+    }
+    if (!entityPassword) {
+      throw new Error("entity_password_required");
+    }
+  }
+
   const companyAccess = await validateCompanyAccess({
-    companyIdentifier: companyNameInput?.value.trim(),
-    companyPassword: companyPasswordInput?.value || "",
-    entityIdentifier: entityNameInput?.value.trim(),
-    entityPassword: entityPasswordInput?.value || "",
+    companyIdentifier,
+    companyPassword,
+    entityIdentifier: isMaster ? "" : entityIdentifier,
+    entityPassword: isMaster ? "" : entityPassword,
     userId: uid
   });
 

@@ -28,7 +28,7 @@ import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
 import { getEntityContext, isMasterAdmin, setEntityContext } from "./entity-context.js";
 import { hasScope } from "./permissions.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
-import { hashCompanyPassword, getSingleCompany, isCompanyGeneralAdmin } from "./company-auth.js";
+import { hashCompanyPassword, getSingleCompany, isCompanyGeneralAdmin, verifyEntityPasswordViaRules } from "./company-auth.js";
 import { APPROVAL_STATUS } from "./admin-constants.js";
 
 let currentUserId = null;
@@ -47,6 +47,7 @@ const editEntityIdInput = document.getElementById("editEntityId");
 const editEntityNameInput = document.getElementById("editEntityName");
 const editEntityAdminSelect = document.getElementById("editEntityAdminSelect");
 const editEntityPasswordInput = document.getElementById("editEntityPassword");
+const editEntityPasswordConfirmInput = document.getElementById("editEntityPasswordConfirm");
 
 async function resolveMasterAccess(uid) {
   if (isMasterAdmin()) {
@@ -217,6 +218,9 @@ function openEditModal(item) {
   if (editEntityPasswordInput) {
     editEntityPasswordInput.value = "";
   }
+  if (editEntityPasswordConfirmInput) {
+    editEntityPasswordConfirmInput.value = "";
+  }
   fillEditAdminSelect(item.adminId || "");
   editModal.classList.add("show");
   editModal.setAttribute("aria-hidden", "false");
@@ -254,6 +258,7 @@ async function saveEntityEdit() {
   const name = sanitizeText(editEntityNameInput?.value, 80);
   const adminId = editEntityAdminSelect?.value || null;
   const newPassword = String(editEntityPasswordInput?.value || "");
+  const newPasswordConfirm = String(editEntityPasswordConfirmInput?.value || "");
 
   if (!entityId || !name) {
     notifyAdmin("adminDebug", "Nom d'entité requis.", true);
@@ -267,6 +272,11 @@ async function saveEntityEdit() {
 
   if (newPassword && newPassword.length < 6) {
     notifyAdmin("adminDebug", "Mot de passe entité : 6 caractères minimum.", true);
+    return;
+  }
+
+  if (newPassword && newPassword !== newPasswordConfirm) {
+    notifyAdmin("adminDebug", "Les mots de passe entité ne correspondent pas.", true);
     return;
   }
 
@@ -299,6 +309,12 @@ async function saveEntityEdit() {
         passwordHash,
         updatedAt: Timestamp.now()
       });
+
+      const verified = await verifyEntityPasswordViaRules(entityId, newPassword);
+      if (!verified) {
+        notifyAdmin("adminDebug", "Échec vérification mot de passe entité après enregistrement.", true);
+        return;
+      }
     }
 
     await syncEntityAdminUser(entityId, adminId, previousAdminId);
@@ -395,6 +411,12 @@ async function createEntity() {
       passwordHash: entityPasswordHash,
       updatedAt: Timestamp.now()
     });
+
+    const verified = await verifyEntityPasswordViaRules(ref.id, entityPassword);
+    if (!verified) {
+      notifyAdmin("adminDebug", "Échec vérification mot de passe entité après création.", true);
+      return;
+    }
 
     await syncEntityAdminUser(ref.id, adminId, null);
 

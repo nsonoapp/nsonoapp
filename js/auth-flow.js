@@ -257,7 +257,7 @@ export function authErrorMessage(err, fallback = "Erreur") {
   }
 
   if (message === "company_password_invalid") {
-    return "Mot de passe société incorrect ou non configuré. Contactez l'administrateur.";
+    return "Mot de passe société incorrect. Vérifiez le mot de passe saisi dans le champ société (company_secrets/main), pas celui de l'entité.";
   }
 
   if (message === "entity_required") {
@@ -273,7 +273,7 @@ export function authErrorMessage(err, fallback = "Erreur") {
   }
 
   if (message === "entity_password_invalid") {
-    return "Mot de passe entité incorrect ou accès non configuré. L'administrateur doit finaliser la création de l'entité.";
+    return "Mot de passe entité incorrect. Vérifiez le nom d'entité (entities) et le mot de passe entité (entity_secrets), distinct du mot de passe société.";
   }
 
   if (message === "company_mismatch") {

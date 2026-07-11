@@ -265,7 +265,19 @@ function resolveAssetPath(relativePath) {
   return `${"../".repeat(depth)}${relativePath}`;
 }
 
+function ensureDrawerCriticalStyles() {
+  if (document.querySelector('link[data-nsono-drawer-critical="1"]')) {
+    return;
+  }
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = resolveAssetPath("css/drawer-critical.css");
+  link.dataset.nsonoDrawerCritical = "1";
+  document.head.appendChild(link);
+}
+
 function ensureDrawerStyles() {
+  ensureDrawerCriticalStyles();
   if (document.querySelector('link[data-nsono-drawer-css="1"]')) {
     return;
   }
@@ -517,6 +529,11 @@ function applyRoleVisibility() {
 }
 
 ensureDrawerStyles();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindDrawerToggleImmediate, { once: true });
+} else {
+  bindDrawerToggleImmediate();
+}
 bootAppNavigation();
 markActiveNavItems();
 ensureHeaderTitleLayout();
