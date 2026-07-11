@@ -12,7 +12,8 @@
   --header-toggle-size: 40px;
 }
 
-#nsonoDrawerOverlay {
+#nsonoDrawerOverlay,
+#NSOSODrawerOverlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
@@ -22,12 +23,14 @@
   z-index: 9998;
 }
 
-#nsonoDrawerOverlay.open {
+#nsonoDrawerOverlay.open,
+#NSOSODrawerOverlay.open {
   opacity: 1;
   pointer-events: auto;
 }
 
-#nsonoDrawer {
+#nsonoDrawer,
+#NSOSODrawer {
   position: fixed;
   top: 0;
   left: 0;
@@ -51,16 +54,23 @@
 }
 
 #nsonoDrawer,
+#NSOSODrawer,
 #nsonoDrawer .drawer-scroll,
+#NSOSODrawer .drawer-scroll,
 #nsonoDrawer #nsonoDrawerNav,
 #nsonoDrawer #nsonoDrawerAdmin,
-#nsonoDrawer .drawer-section {
+#NSOSODrawer #NSOSODrawerNav,
+#NSOSODrawer #NSOSODrawerAdmin,
+#nsonoDrawer .drawer-section,
+#NSOSODrawer .drawer-section {
   flex-direction: column;
   flex-wrap: nowrap;
 }
 
 #nsonoDrawerNav > *,
+#NSOSODrawerNav > *,
 #nsonoDrawerAdmin > *,
+#NSOSODrawerAdmin > *,
 .drawer-section > *,
 .drawer-section .drawer-item {
   width: 100%;
@@ -68,7 +78,8 @@
   box-sizing: border-box;
 }
 
-#nsonoDrawer.open {
+#nsonoDrawer.open,
+#NSOSODrawer.open {
   transform: translateX(0);
   visibility: visible;
 }
@@ -148,7 +159,9 @@
 /* Nav principale — colonne stricte */
 
 #nsonoDrawerNav,
-#nsonoDrawerAdmin {
+#NSOSODrawerNav,
+#nsonoDrawerAdmin,
+#NSOSODrawerAdmin {
   width: 100%;
   max-width: 100%;
   display: flex;
@@ -160,7 +173,9 @@
 }
 
 #nsonoDrawer #nsonoDrawerNav,
-#nsonoDrawer #nsonoDrawerAdmin {
+#nsonoDrawer #nsonoDrawerAdmin,
+#NSOSODrawer #NSOSODrawerNav,
+#NSOSODrawer #NSOSODrawerAdmin {
   position: static !important;
   inset: auto !important;
   left: auto !important;
@@ -265,17 +280,20 @@
   display: none;
 }
 
-#nsonoMain {
+#nsonoMain,
+#NSOSOMain {
   width: 100%;
   min-height: 100vh;
   min-width: 0;
 }
 
-body.nsono-app {
+body.nsono-app,
+body.NSOSO-app {
   margin: 0;
 }
 
-#nsonoDrawerToggle {
+#nsonoDrawerToggle,
+#NSOSODrawerToggle {
   flex: 0 0 var(--header-toggle-size);
   width: var(--header-toggle-size);
   height: var(--header-toggle-size);
@@ -291,35 +309,53 @@ body.nsono-app {
   place-items: center;
 }
 
-header:has(#nsonoDrawerToggle) {
+header:has(#nsonoDrawerToggle),
+header:has(#NSOSODrawerToggle) {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-content: flex-start;
 }
 
 header:has(#nsonoDrawerToggle) .nsono-page-title,
+header:has(#nsonoDrawerToggle) .NSOSO-page-title,
 header:has(#nsonoDrawerToggle) h1,
 header:has(#nsonoDrawerToggle) h2,
-header:has(#nsonoDrawerToggle) h3 {
+header:has(#nsonoDrawerToggle) h3,
+header:has(#NSOSODrawerToggle) .nsono-page-title,
+header:has(#NSOSODrawerToggle) .NSOSO-page-title,
+header:has(#NSOSODrawerToggle) h1,
+header:has(#NSOSODrawerToggle) h2,
+header:has(#NSOSODrawerToggle) h3 {
   flex: 1;
   min-width: 0;
 }
 
-header:has(#nsonoDrawerToggle) .status {
+header:has(#nsonoDrawerToggle) .status,
+header:has(#NSOSODrawerToggle) .status {
   flex-shrink: 0;
 }
 
+header:has(#NSOSODrawerToggle) > div:first-of-type,
+header:has(#nsonoDrawerToggle) > div:first-of-type {
+  flex: 1;
+  min-width: 0;
+}
+
 @media (min-width: 1024px) {
-  body.nsono-app {
+  body.nsono-app,
+  body.NSOSO-app {
     display: flex;
     flex-direction: row;
   }
 
-  #nsonoDrawerOverlay {
+  #nsonoDrawerOverlay,
+  #NSOSODrawerOverlay {
     display: none !important;
   }
 
-  #nsonoDrawer {
+  #nsonoDrawer,
+  #NSOSODrawer {
     position: relative;
     flex: 0 0 var(--drawer-width);
     max-width: none;
@@ -336,11 +372,13 @@ header:has(#nsonoDrawerToggle) .status {
     max-height: calc(100dvh - 72px);
   }
 
-  #nsonoDrawerToggle {
+  #nsonoDrawerToggle,
+  #NSOSODrawerToggle {
     display: none;
   }
 
-  #nsonoMain {
+  #nsonoMain,
+  #NSOSOMain {
     flex: 1;
     min-width: 0;
   }

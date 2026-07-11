@@ -12,7 +12,7 @@ import {
 import {
   guardAdminPage,
   renderContextBanner,
-  showMessage,
+  notifyAdmin,
   bindListActions,
   createTextEl,
   formatAdminDate
@@ -98,11 +98,11 @@ async function updateApproval(item, status) {
       details: { email: item.email || null }
     });
 
-    showMessage("adminDebug", status === APPROVAL_STATUS.approved ? "Utilisateur approuvé." : "Utilisateur rejeté.");
+    notifyAdmin("adminDebug", status === APPROVAL_STATUS.approved ? "Utilisateur approuvé." : "Utilisateur rejeté.");
     await loadPendingUsers();
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors du traitement.", true);
+    notifyAdmin("adminDebug", "Erreur lors du traitement.", true);
   }
 }
 

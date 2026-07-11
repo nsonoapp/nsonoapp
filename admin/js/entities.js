@@ -15,25 +15,26 @@ import {
 import {
   guardAdminPage,
   renderContextBanner,
-  showMessage,
+  notifyAdmin,
   sanitizeText,
   bindListActions,
   createTextEl,
   formatAdminDate,
   cacheEntityName,
-  createCopyButton
+  createCopyButton,
+  confirmDangerAction
 } from "./admin-shared.js";
 import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
-import { getEntityContext, isMasterAdmin } from "./entity-context.js";
+import { getEntityContext, isMasterAdmin, setEntityContext } from "./entity-context.js";
 import { hasScope } from "./permissions.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
-import { hashCompanyPassword } from "./company-auth.js";
+import { hashCompanyPassword, getSingleCompany, isCompanyGeneralAdmin } from "./company-auth.js";
 import { APPROVAL_STATUS } from "./admin-constants.js";
 
 let currentUserId = null;
 let permissions = null;
 let entities = [];
-let approvedUsers = [];
+let approvedAdmins = [];
 
 const listEl = document.getElementById("entitiesList");
 const nameInput = document.getElementById("entityName");
@@ -47,21 +48,31 @@ const editEntityNameInput = document.getElementById("editEntityName");
 const editEntityAdminSelect = document.getElementById("editEntityAdminSelect");
 const editEntityPasswordInput = document.getElementById("editEntityPassword");
 
-function fillAdminSelect(selectEl, selectedId = "") {
+async function resolveMasterAccess(uid) {
+  if (isMasterAdmin()) {
+    return true;
+  }
+  const company = await getSingleCompany().catch(() => null);
+  return isCompanyGeneralAdmin(company, uid);
+}
+
+function fillAdminSelect(selectEl, selectedId = "", required = false) {
   if (!selectEl) {
     return;
   }
   selectEl.replaceChildren();
+
   const defaultOpt = document.createElement("option");
   defaultOpt.value = "";
-  defaultOpt.textContent = "Admin entité (optionnel)";
+  defaultOpt.textContent = required
+    ? "Choisir un administrateur"
+    : "— Aucun —";
   selectEl.appendChild(defaultOpt);
 
-  approvedUsers.forEach(user => {
+  approvedAdmins.forEach(user => {
     const opt = document.createElement("option");
     opt.value = user.id;
-    const label = user.name || user.email || user.id;
-    opt.textContent = `${label} (${user.id.slice(0, 8)}…)`;
+    opt.textContent = user.name || user.email || user.id;
     if (user.id === selectedId) {
       opt.selected = true;
     }
@@ -70,61 +81,51 @@ function fillAdminSelect(selectEl, selectedId = "") {
 }
 
 function fillEditAdminSelect(selectedId = "") {
-  if (!editEntityAdminSelect) {
-    return;
-  }
-  editEntityAdminSelect.replaceChildren();
-  const defaultOpt = document.createElement("option");
-  defaultOpt.value = "";
-  defaultOpt.textContent = "— Aucun —";
-  editEntityAdminSelect.appendChild(defaultOpt);
-
-  approvedUsers.forEach(user => {
-    const opt = document.createElement("option");
-    opt.value = user.id;
-    const label = user.name || user.email || user.id;
-    opt.textContent = `${label} (${user.id.slice(0, 8)}…)`;
-    if (user.id === selectedId) {
-      opt.selected = true;
-    }
-    editEntityAdminSelect.appendChild(opt);
-  });
+  fillAdminSelect(editEntityAdminSelect, selectedId, true);
 }
 
-async function loadApprovedUsers() {
-  // #region agent log
-  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H2',location:'entities.js:loadApprovedUsers:start',message:'loadApprovedUsers start',data:{},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+function filterApprovedAdmins(docs) {
+  return docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(user =>
+      user.role === "admin" &&
+      user.approvalStatus === APPROVAL_STATUS.approved &&
+      user.isActive !== false &&
+      (!user.companyId || user.companyId === SINGLE_COMPANY_ID)
+    )
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+}
+
+async function loadApprovedAdmins() {
   let snap;
   try {
     snap = await getDocs(query(
       collection(db, ADMIN_COLLECTIONS.users),
-      where("companyId", "==", SINGLE_COMPANY_ID),
-      where("approvalStatus", "==", APPROVAL_STATUS.approved),
-      where("isActive", "==", true)
+      where("role", "==", "admin"),
+      where("approvalStatus", "==", APPROVAL_STATUS.approved)
     ));
-  } catch (err) {
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H2',location:'entities.js:loadApprovedUsers:error',message:'loadApprovedUsers query failed',data:{code:err?.code||null,message:err?.message||String(err)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    throw err;
+  } catch {
+    snap = await getDocs(collection(db, ADMIN_COLLECTIONS.users));
   }
-  approvedUsers = snap.docs
-    .map(d => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  // #region agent log
-  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H2',location:'entities.js:loadApprovedUsers:done',message:'loadApprovedUsers result',data:{count:approvedUsers.length,sampleRoles:approvedUsers.slice(0,3).map(u=>u.role)},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  fillAdminSelect(adminSelect);
+
+  approvedAdmins = filterApprovedAdmins(snap.docs);
+  fillAdminSelect(adminSelect, "", true);
 }
 
 async function loadEntities() {
-  const ctx = getEntityContext();
-  // #region agent log
-  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H1',location:'entities.js:loadEntities:start',message:'loadEntities context',data:{isMasterAdmin:ctx.isMasterAdmin,entityId:ctx.entityId||null,companyId:ctx.companyId||null},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+  const master = await resolveMasterAccess(currentUserId);
 
-  if (ctx.isMasterAdmin) {
+  if (master && !isMasterAdmin()) {
+    setEntityContext({
+      companyId: SINGLE_COMPANY_ID,
+      entityId: null,
+      isMasterAdmin: true
+    });
+  }
+
+  const ctx = getEntityContext();
+
+  if (master) {
     const snap = await getDocs(query(
       collection(db, ADMIN_COLLECTIONS.entities),
       where("companyId", "==", SINGLE_COMPANY_ID)
@@ -143,9 +144,6 @@ async function loadEntities() {
   }
 
   entities.forEach(item => cacheEntityName(item.id, item.name));
-  // #region agent log
-  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H1',location:'entities.js:loadEntities:done',message:'loadEntities result',data:{count:entities.length,names:entities.slice(0,5).map(e=>e.name)},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   renderList();
 }
 
@@ -153,7 +151,7 @@ function adminDisplayName(adminId) {
   if (!adminId) {
     return "—";
   }
-  const user = approvedUsers.find(u => u.id === adminId);
+  const user = approvedAdmins.find(u => u.id === adminId);
   return user ? (user.name || user.email || adminId) : adminId;
 }
 
@@ -176,7 +174,7 @@ function renderList() {
       const uidText = createTextEl("code", item.adminId);
       uidText.className = "admin-uid-text";
       const copyBtn = createCopyButton("Copier UID", item.adminId, copied => {
-        showMessage("adminDebug", copied ? "UID admin copié." : "Copie impossible.", !copied);
+        notifyAdmin("adminDebug", copied ? "UID admin copié." : "Copie impossible.", !copied);
       });
       uidLine.append(uidText, copyBtn);
       main.append(title, meta, uidLine);
@@ -258,17 +256,33 @@ async function saveEntityEdit() {
   const newPassword = String(editEntityPasswordInput?.value || "");
 
   if (!entityId || !name) {
-    showMessage("adminDebug", "Nom d'entité requis.", true);
+    notifyAdmin("adminDebug", "Nom d'entité requis.", true);
+    return;
+  }
+
+  if (!adminId) {
+    notifyAdmin("adminDebug", "Admin entité obligatoire.", true);
     return;
   }
 
   if (newPassword && newPassword.length < 6) {
-    showMessage("adminDebug", "Mot de passe entité : 6 caractères minimum.", true);
+    notifyAdmin("adminDebug", "Mot de passe entité : 6 caractères minimum.", true);
     return;
   }
 
   const existing = entities.find(e => e.id === entityId);
   const previousAdminId = existing?.adminId || null;
+
+  if (newPassword) {
+    const confirmed = await confirmDangerAction({
+      title: "Changer le mot de passe entité",
+      message: "Cette action modifie les identifiants de connexion de l'entité. Les utilisateurs devront utiliser le nouveau mot de passe.",
+      confirmLabel: "Mettre à jour le mot de passe"
+    });
+    if (!confirmed) {
+      return;
+    }
+  }
 
   try {
     await updateDoc(doc(db, ADMIN_COLLECTIONS.entities, entityId), {
@@ -297,49 +311,71 @@ async function saveEntityEdit() {
     });
 
     closeEditModal();
-    showMessage("adminDebug", "Entité mise à jour.");
+    notifyAdmin("adminDebug", "Entité mise à jour.");
     await loadEntities();
     await renderContextBanner();
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de la mise à jour.", true);
+    notifyAdmin("adminDebug", "Erreur lors de la mise à jour.", true);
   }
 }
 
 async function toggleEntity(item) {
+  const willDeactivate = item.isActive !== false;
+  const confirmed = await confirmDangerAction({
+    title: willDeactivate ? "Désactiver l'entité" : "Activer l'entité",
+    message: willDeactivate
+      ? "Les utilisateurs de cette entité ne pourront plus se connecter avec ses identifiants tant qu'elle reste inactive."
+      : "L'entité redeviendra accessible à la connexion.",
+    confirmLabel: willDeactivate ? "Désactiver" : "Activer"
+  });
+  if (!confirmed) {
+    return;
+  }
+
   try {
     await updateDoc(doc(db, ADMIN_COLLECTIONS.entities, item.id), {
-      isActive: item.isActive === false,
+      isActive: !willDeactivate,
       updatedAt: Timestamp.now()
     });
     await writeLog({
       userId: currentUserId,
       action: "entity_status_update",
       targetId: item.id,
-      details: { isActive: item.isActive === false }
+      details: { isActive: !willDeactivate }
     });
+    notifyAdmin("adminDebug", willDeactivate ? "Entité désactivée." : "Entité activée.");
     await loadEntities();
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de la mise à jour de l'entité.", true);
+    notifyAdmin("adminDebug", "Erreur lors de la mise à jour de l'entité.", true);
   }
 }
 
 async function createEntity() {
-  const ctx = getEntityContext();
-  const companyId = ctx.companyId || SINGLE_COMPANY_ID;
+  const companyId = SINGLE_COMPANY_ID;
 
   const name = sanitizeText(nameInput?.value, 80);
   const adminId = adminSelect?.value || null;
   const entityPassword = String(entityPasswordInput?.value || "");
 
   if (!name) {
-    showMessage("adminDebug", "Nom d'entité requis.", true);
+    notifyAdmin("adminDebug", "Nom d'entité requis.", true);
+    return;
+  }
+
+  if (!adminId) {
+    notifyAdmin("adminDebug", "Admin entité obligatoire.", true);
     return;
   }
 
   if (entityPassword.length < 6) {
-    showMessage("adminDebug", "Mot de passe entité requis (6 caractères minimum).", true);
+    notifyAdmin("adminDebug", "Mot de passe entité requis (6 caractères minimum).", true);
+    return;
+  }
+
+  if (!approvedAdmins.some(user => user.id === adminId)) {
+    notifyAdmin("adminDebug", "Administrateur sélectionné invalide.", true);
     return;
   }
 
@@ -348,7 +384,7 @@ async function createEntity() {
     const ref = await addDoc(collection(db, ADMIN_COLLECTIONS.entities), {
       companyId,
       name,
-      adminId: adminId || null,
+      adminId,
       isActive: true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -360,15 +396,13 @@ async function createEntity() {
       updatedAt: Timestamp.now()
     });
 
-    if (adminId) {
-      await syncEntityAdminUser(ref.id, adminId, null);
-    }
+    await syncEntityAdminUser(ref.id, adminId, null);
 
     await writeLog({
       userId: currentUserId,
       action: "entity_create",
       targetId: ref.id,
-      details: { name }
+      details: { name, adminId }
     });
 
     if (nameInput) {
@@ -380,12 +414,12 @@ async function createEntity() {
     if (entityPasswordInput) {
       entityPasswordInput.value = "";
     }
-    showMessage("adminDebug", "Entité créée.");
+    notifyAdmin("adminDebug", "Entité créée.");
     await loadEntities();
     await renderContextBanner();
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de la création.", true);
+    notifyAdmin("adminDebug", "Erreur lors de la création.", true);
   }
 }
 
@@ -393,14 +427,18 @@ guardAdminPage("scope_entities").then(async result => {
   currentUserId = result.user.uid;
   permissions = result.permissions;
   try {
-    await loadApprovedUsers();
+    await loadApprovedAdmins();
+    if (!approvedAdmins.length) {
+      notifyAdmin(
+        "adminDebug",
+        "Aucun administrateur approuvé disponible. Approuvez d'abord un utilisateur avec le rôle admin.",
+        true
+      );
+    }
     await renderContextBanner();
     await loadEntities();
   } catch (err) {
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H1-H2',location:'entities.js:guardInit:error',message:'entities page init failed',data:{code:err?.code||null,message:err?.message||String(err)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    showMessage("adminDebug", "Erreur chargement entités : " + (err?.message || "inconnue"), true);
+    notifyAdmin("adminDebug", "Erreur chargement entités : " + (err?.message || "inconnue"), true);
   }
 });
 

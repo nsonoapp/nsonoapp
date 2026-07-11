@@ -17,7 +17,7 @@ import { bindActionButton } from "../../js/utils/buttonManager.js";
 import { setEntityContext } from "./entity-context.js";
 import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
 import { APPROVAL_STATUS } from "./admin-constants.js";
-import { showMessage, sanitizeText } from "./admin-shared.js";
+import { notifyAdmin, sanitizeText } from "./admin-shared.js";
 
 const auth = getAuth();
 
@@ -39,7 +39,7 @@ function lockOnboardingForm(message) {
     onboardingSubmitBtn.disabled = true;
   }
   if (message) {
-    showMessage("onboardingDebug", message, true);
+    notifyAdmin("onboardingDebug", message, true);
   }
 }
 
@@ -51,18 +51,18 @@ async function bootstrapCompany(user) {
   const entityPassword = String(entityPasswordInput?.value || "");
 
   if (await hasSingleCompany()) {
-    showMessage("onboardingDebug", "Une société existe déjà pour cette base. Création interdite.", true);
+    notifyAdmin("onboardingDebug", "Une société existe déjà pour cette base. Création interdite.", true);
     lockOnboardingForm();
     return;
   }
 
   if (!name || !password || password.length < 6) {
-    showMessage("onboardingDebug", "Nom société et mot de passe (6 car. min.) requis.", true);
+    notifyAdmin("onboardingDebug", "Nom société et mot de passe (6 car. min.) requis.", true);
     return;
   }
 
   if (!entityName || entityPassword.length < 6) {
-    showMessage("onboardingDebug", "Nom de la première entité et mot de passe entité (6 car. min.) requis.", true);
+    notifyAdmin("onboardingDebug", "Nom de la première entité et mot de passe entité (6 car. min.) requis.", true);
     return;
   }
 
@@ -132,13 +132,13 @@ async function bootstrapCompany(user) {
       details: { name, entityName }
     });
 
-    showMessage("onboardingDebug", "Société unique initialisée (companies/main).");
+    notifyAdmin("onboardingDebug", "Société et première entité initialisées.");
     setTimeout(() => {
       location.href = "admin.html";
     }, 800);
   } catch (err) {
     console.error(err);
-    showMessage("onboardingDebug", "Erreur lors de l'initialisation.", true);
+    notifyAdmin("onboardingDebug", "Erreur lors de l'initialisation.", true);
   }
 }
 
@@ -156,7 +156,7 @@ onAuthStateChanged(auth, async user => {
 bindActionButton(onboardingSubmitBtn, async () => {
   const user = auth.currentUser;
   if (!user) {
-    showMessage("onboardingDebug", "Connectez-vous d'abord.", true);
+    notifyAdmin("onboardingDebug", "Connectez-vous d'abord.", true);
     return;
   }
   await bootstrapCompany(user);

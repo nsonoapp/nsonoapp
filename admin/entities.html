@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0B3D2E">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://127.0.0.1:7701 https://*.googleapis.com https://*.firebaseio.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.gstatic.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self';">
 <link rel="manifest" href="../manifest.json">
 <title>Entités — NSOSO Admin</title>
 <link rel="stylesheet" href="../css/drawer.css">
@@ -29,8 +29,9 @@
     <h3>Nouvelle entité</h3>
     <div class="form-grid">
       <input type="text" id="entityName" placeholder="Nom (ex. Goma)" maxlength="80">
-      <select id="entityAdminSelect">
-        <option value="">Admin entité (optionnel)</option>
+      <label for="entityAdminSelect">Admin entité *</label>
+      <select id="entityAdminSelect" required>
+        <option value="">Choisir un administrateur</option>
       </select>
       <input type="password" id="entityPassword" placeholder="Mot de passe entité (min. 6)" minlength="6" maxlength="64">
     </div>
@@ -46,9 +47,9 @@
     <input type="hidden" id="editEntityId">
     <label for="editEntityName">Nom</label>
     <input type="text" id="editEntityName" maxlength="80">
-    <label for="editEntityAdminSelect">Admin entité</label>
-    <select id="editEntityAdminSelect">
-      <option value="">— Aucun —</option>
+    <label for="editEntityAdminSelect">Admin entité *</label>
+    <select id="editEntityAdminSelect" required>
+      <option value="">Choisir un administrateur</option>
     </select>
     <label for="editEntityPassword">Nouveau mot de passe entité (laisser vide pour ne pas changer)</label>
     <input type="password" id="editEntityPassword" minlength="6" maxlength="64">

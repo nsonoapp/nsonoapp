@@ -89,18 +89,38 @@ export async function resolveEntityByName(companyId, entityIdentifier) {
   return null;
 }
 
-async function hasCompanySecret() {
-  const snap = await getDoc(
-    doc(db, ADMIN_COLLECTIONS.companySecrets, SINGLE_COMPANY_ID)
-  );
-  return snap.exists();
-}
-
 async function cleanupAuthProbe(probeRef) {
   try {
     await deleteDoc(probeRef);
   } catch {
     /* nettoyage best-effort */
+  }
+}
+
+async function probePasswordMatch(collectionName, probePayload) {
+  const auth = getAuth();
+  const uid = auth.currentUser?.uid;
+  if (!uid) {
+    return { ok: false, reason: "auth_required" };
+  }
+
+  const probeRef = doc(collection(db, collectionName));
+
+  try {
+    await setDoc(probeRef, {
+      ...probePayload,
+      uid,
+      createdAt: Timestamp.now()
+    });
+    await cleanupAuthProbe(probeRef);
+    return { ok: true };
+  } catch (err) {
+    await cleanupAuthProbe(probeRef);
+    const code = err?.code || "";
+    if (code === "permission-denied") {
+      return { ok: false, reason: "password_mismatch_or_missing_secret" };
+    }
+    return { ok: false, reason: "probe_failed" };
   }
 }
 
@@ -114,34 +134,11 @@ export async function verifyCompanyPasswordViaRules(companyId, plainPassword) {
     return false;
   }
 
-  const auth = getAuth();
-  const uid = auth.currentUser?.uid;
-  if (!uid) {
-    return false;
-  }
-
-  const probeRef = doc(collection(db, ADMIN_COLLECTIONS.companyAuthProbes));
-
-  try {
-    await setDoc(probeRef, {
-      companyId: SINGLE_COMPANY_ID,
-      passwordHash,
-      uid,
-      createdAt: Timestamp.now()
-    });
-    await cleanupAuthProbe(probeRef);
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H4',location:'company-auth.js:verifyCompany:ok',message:'company password probe OK',data:{hashLen:passwordHash.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    return true;
-  } catch (err) {
-    await cleanupAuthProbe(probeRef);
-    const secretSnap = await getDoc(doc(db, ADMIN_COLLECTIONS.companySecrets, SINGLE_COMPANY_ID));
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H4',location:'company-auth.js:verifyCompany:fail',message:'company password probe FAIL',data:{secretExists:secretSnap.exists(),storedLen:secretSnap.exists()?String(secretSnap.data()?.passwordHash||'').length:0,hashLen:passwordHash.length,code:err?.code||null},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    return false;
-  }
+  const result = await probePasswordMatch(ADMIN_COLLECTIONS.companyAuthProbes, {
+    companyId: SINGLE_COMPANY_ID,
+    passwordHash
+  });
+  return result.ok;
 }
 
 export async function verifyEntityPasswordViaRules(entityId, plainPassword) {
@@ -150,42 +147,16 @@ export async function verifyEntityPasswordViaRules(entityId, plainPassword) {
     return false;
   }
 
-  const secretSnap = await getDoc(doc(db, ADMIN_COLLECTIONS.entitySecrets, targetId));
-  const secretExists = secretSnap.exists();
-  const storedLen = secretSnap.exists() ? String(secretSnap.data()?.passwordHash || "").length : 0;
-
   const passwordHash = await hashCompanyPassword(plainPassword);
   if (!passwordHash) {
     return false;
   }
 
-  const auth = getAuth();
-  const uid = auth.currentUser?.uid;
-  if (!uid) {
-    return false;
-  }
-
-  const probeRef = doc(collection(db, ADMIN_COLLECTIONS.entityAuthProbes));
-
-  try {
-    await setDoc(probeRef, {
-      entityId: targetId,
-      passwordHash,
-      uid,
-      createdAt: Timestamp.now()
-    });
-    await cleanupAuthProbe(probeRef);
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H3',location:'company-auth.js:verifyEntity:ok',message:'entity password probe OK',data:{entityId:targetId,secretExists,storedLen,hashLen:passwordHash.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    return true;
-  } catch (err) {
-    await cleanupAuthProbe(probeRef);
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H3',location:'company-auth.js:verifyEntity:fail',message:'entity password probe FAIL',data:{entityId:targetId,secretExists,storedLen,hashLen:passwordHash.length,code:err?.code||null},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    return false;
-  }
+  const result = await probePasswordMatch(ADMIN_COLLECTIONS.entityAuthProbes, {
+    entityId: targetId,
+    passwordHash
+  });
+  return result.ok;
 }
 
 export function isCompanyGeneralAdmin(company, userId) {
@@ -233,11 +204,6 @@ export async function resolveCompanyAccess({
     return { ok: false, error: "company_password_required", company: null };
   }
 
-  const secretExists = await hasCompanySecret();
-  if (!secretExists) {
-    return { ok: false, error: "company_password_invalid", company: null };
-  }
-
   const companyPasswordOk = await verifyCompanyPasswordViaRules(
     matched.id,
     companyPasswordValue
@@ -275,9 +241,6 @@ export async function resolveCompanyAccess({
     entityPasswordValue
   );
   if (!entityPasswordOk) {
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H3',location:'company-auth.js:resolveCompanyAccess',message:'entity password rejected at login gate',data:{entityId:entity.id,entityName:entity.name||null},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return { ok: false, error: "entity_password_invalid", company: null };
   }
 

@@ -40,6 +40,8 @@ import { isMasterAdmin } from "./entity-context.js";
 import { getEntityContext } from "./entity-context.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
 import { ADMIN_COLLECTIONS } from "./admin-collections.js";
+import { createCopyButton } from "./admin-shared.js";
+import { restoreNsonoSession } from "../../js/auth-flow.js";
 
 const auth = getAuth();
 
@@ -50,6 +52,7 @@ const auth = getAuth();
 let currentUserId = null;
 let activeSettingsId = resolveActiveSettingsId();
 let adminMode = "entity";
+let usersEntityFilterId = "all";
 
 const usersCollection = collection(db, "users");
 
@@ -614,6 +617,41 @@ async function loadEntitySettingsSelector() {
   });
 }
 
+async function loadUsersEntityFilter() {
+  const wrap = document.getElementById("usersEntityFilterWrap");
+  const select = document.getElementById("usersEntityFilter");
+  if (!wrap || !select || adminMode !== "general") {
+    wrap?.classList.add("field-hidden");
+    return;
+  }
+
+  wrap.classList.remove("field-hidden");
+  select.replaceChildren();
+
+  const allOpt = document.createElement("option");
+  allOpt.value = "all";
+  allOpt.textContent = "Toutes les entités";
+  select.appendChild(allOpt);
+
+  const entitiesSnap = await getDocs(collection(db, ADMIN_COLLECTIONS.entities));
+  entitiesSnap.forEach(entityDoc => {
+    const entity = entityDoc.data();
+    if (entity.isActive === false) {
+      return;
+    }
+    const opt = document.createElement("option");
+    opt.value = entityDoc.id;
+    opt.textContent = entity.name || entityDoc.id;
+    select.appendChild(opt);
+  });
+
+  select.value = usersEntityFilterId;
+  select.addEventListener("change", () => {
+    usersEntityFilterId = select.value || "all";
+    loadUsers();
+  });
+}
+
 /* =========================
    AUTH
 ========================= */
@@ -631,6 +669,7 @@ onAuthStateChanged(auth, async (user) => {
   currentUserId = user.uid;
 
   try {
+    await restoreNsonoSession(user.uid);
 
     const userRef =
       doc(db, "users", currentUserId);
@@ -703,6 +742,7 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
+    await loadUsersEntityFilter();
     loadUsers();
 
   } catch (err) {
@@ -740,12 +780,24 @@ async function loadUsers() {
       return;  
     }  
 
-    showEmpty(false);  
+    showEmpty(false);
 
-    snapshot.forEach((docSnap) => {  
+    const rows = [];
+    snapshot.forEach(docSnap => rows.push({ id: docSnap.id, ...docSnap.data() }));
 
-      const data = docSnap.data();  
-      const userId = docSnap.id;  
+    const filteredRows = usersEntityFilterId === "all"
+      ? rows
+      : rows.filter(row => row.entityId === usersEntityFilterId);
+
+    if (!filteredRows.length) {
+      showEmpty(true);
+      showLoading(false);
+      return;
+    }
+
+    filteredRows.forEach((data) => {
+
+      const userId = data.id || data.userId;
       const tr = document.createElement("tr");  
 
       /* ---------- NAME ---------- */  
@@ -780,9 +832,13 @@ async function loadUsers() {
       }  
       statusTd.appendChild(status);  
 
-      /* ---------- ACTIONS ---------- */  
-      const actionsTd = document.createElement("td");  
-      actionsTd.className = "actions";  
+      /* ---------- ACTIONS ---------- */
+      const actionsTd = document.createElement("td");
+      actionsTd.className = "actions";
+
+      const copyBtn = createCopyButton("Copier UID", userId, copied => {
+        showMessage(copied ? "UID copié." : "Copie impossible.");
+      });
 
       /* ROLE BUTTON */  
       const roleBtn = createButton("Changer rôle", "btn-action");  
@@ -898,6 +954,7 @@ async function loadUsers() {
         }
       });  
 
+      actionsTd.appendChild(copyBtn);
       actionsTd.appendChild(roleBtn);  
       actionsTd.appendChild(statusBtn);  
       actionsTd.appendChild(deleteBtn);  

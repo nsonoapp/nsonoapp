@@ -1,4 +1,4 @@
-// NAV — shell drawer statique + rendu public synchrone (sans role / sans Firestore)
+// NAV — shell drawer + rendu public (support NSOSO* et nsono*)
 const currentPage = location.pathname.split("/").pop();
 
 const DRAWER_HUB_ITEM = {
@@ -45,6 +45,46 @@ const DRAWER_PUBLIC_SECTIONS = [
   }
 ];
 
+function drawerEl(...ids) {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) {
+      return el;
+    }
+  }
+  return null;
+}
+
+function getDrawerShell() {
+  const drawer = drawerEl("nsonoDrawer", "NSOSODrawer");
+  const overlay = drawerEl("nsonoDrawerOverlay", "NSOSODrawerOverlay");
+  const main = drawerEl("nsonoMain", "NSOSOMain");
+  const toggle = drawerEl("nsonoDrawerToggle", "NSOSODrawerToggle");
+
+  return {
+    overlay,
+    drawer,
+    brand: drawerEl("nsonoDrawerBrand", "NSOSODrawerBrand"),
+    nav: drawerEl("nsonoDrawerNav", "NSOSODrawerNav"),
+    adminNav: drawerEl("nsonoDrawerAdmin", "NSOSODrawerAdmin"),
+    main,
+    toggle,
+    overlayId: overlay?.id || (drawer?.id?.includes("NSOSO") ? "NSOSODrawerOverlay" : "nsonoDrawerOverlay"),
+    drawerId: drawer?.id || "nsonoDrawer",
+    usesLegacyIds: Boolean(drawer?.id?.startsWith("NSOSO"))
+  };
+}
+
+function hasPrebuiltDrawerShell() {
+  const shell = getDrawerShell();
+  return Boolean(shell.drawer && shell.main);
+}
+
+function markAppShellReady() {
+  document.body.classList.add("nsono-app");
+  document.body.classList.add("NSOSO-app");
+}
+
 function resolveDrawerHref(href) {
   const parts = location.pathname.split("/").filter(Boolean);
   let base = "";
@@ -90,15 +130,16 @@ function createDrawerPublicItem(item, isActive) {
 }
 
 function ensureDrawerDomShell() {
-  let drawer = document.getElementById("nsonoDrawer");
+  const shell = getDrawerShell();
+  const drawer = shell.drawer;
   if (!drawer) {
     return null;
   }
 
-  let brand = document.getElementById("nsonoDrawerBrand");
-  let scroll = drawer.querySelector(".drawer-scroll");
-  let nav = document.getElementById("nsonoDrawerNav");
-  let adminNav = document.getElementById("nsonoDrawerAdmin");
+  let brand = shell.brand;
+  const scroll = drawer.querySelector(".drawer-scroll");
+  let nav = shell.nav;
+  let adminNav = shell.adminNav;
 
   if (brand && scroll && nav && adminNav) {
     return { brand, nav };
@@ -107,19 +148,19 @@ function ensureDrawerDomShell() {
   drawer.replaceChildren();
 
   brand = createDrawerNode("div", "drawer-brand");
-  brand.id = "nsonoDrawerBrand";
+  brand.id = shell.drawerId.replace("Drawer", "DrawerBrand");
 
-  scroll = createDrawerNode("div", "drawer-scroll");
+  const scrollEl = createDrawerNode("div", "drawer-scroll");
   nav = createDrawerNode("nav", "drawer-nav");
-  nav.id = "nsonoDrawerNav";
+  nav.id = shell.drawerId.replace("Drawer", "DrawerNav");
   nav.setAttribute("aria-label", "Navigation principale");
 
   adminNav = createDrawerNode("nav", "drawer-admin-slot");
-  adminNav.id = "nsonoDrawerAdmin";
+  adminNav.id = shell.drawerId.replace("Drawer", "DrawerAdmin");
   adminNav.setAttribute("aria-label", "Administration");
 
-  scroll.append(nav, adminNav);
-  drawer.append(brand, scroll);
+  scrollEl.append(nav, adminNav);
+  drawer.append(brand, scrollEl);
 
   return { brand, nav };
 }
@@ -200,33 +241,59 @@ function ensureDrawerStyles() {
   document.head.appendChild(link);
 }
 
-function ensureHeaderToggle(header) {
-  if (!header || document.getElementById("nsonoDrawerToggle")) {
-    return;
+function ensureOverlayForShell(shell) {
+  if (shell.overlay || !shell.drawer) {
+    return shell.overlay;
   }
+  const overlay = document.createElement("div");
+  overlay.id = shell.overlayId;
+  document.body.insertBefore(overlay, shell.drawer);
+  return overlay;
+}
+
+function ensureHeaderToggle(header) {
+  if (!header) {
+    return null;
+  }
+  const existing = getDrawerShell().toggle;
+  if (existing) {
+    return existing;
+  }
+  const shell = getDrawerShell();
   const toggle = document.createElement("button");
   toggle.type = "button";
-  toggle.id = "nsonoDrawerToggle";
+  toggle.id = shell.usesLegacyIds ? "NSOSODrawerToggle" : "nsonoDrawerToggle";
   toggle.setAttribute("aria-label", "Ouvrir le menu");
   toggle.textContent = "☰";
   header.insertBefore(toggle, header.firstChild);
+  return toggle;
 }
 
 function ensureAppShell() {
-  if (document.body.classList.contains("nsono-app")) {
-    ensureHeaderToggle(document.querySelector("#nsonoMain header, header"));
+  const shell = getDrawerShell();
+
+  if (hasPrebuiltDrawerShell()) {
+    markAppShellReady();
+    ensureOverlayForShell(shell);
+    ensureHeaderToggle(shell.main.querySelector("header"));
     renderDrawerPublicShell();
     return;
   }
 
-  let overlay = document.getElementById("nsonoDrawerOverlay");
+  if (document.body.classList.contains("nsono-app") || document.body.classList.contains("NSOSO-app")) {
+    ensureHeaderToggle(document.querySelector("#nsonoMain header, #NSOSOMain header, header"));
+    renderDrawerPublicShell();
+    return;
+  }
+
+  let overlay = shell.overlay;
   if (!overlay) {
     overlay = document.createElement("div");
     overlay.id = "nsonoDrawerOverlay";
     document.body.appendChild(overlay);
   }
 
-  let drawer = document.getElementById("nsonoDrawer");
+  let drawer = shell.drawer;
   if (!drawer) {
     drawer = document.createElement("aside");
     drawer.id = "nsonoDrawer";
@@ -254,7 +321,7 @@ function ensureAppShell() {
     document.body.appendChild(drawer);
   }
 
-  let main = document.getElementById("nsonoMain");
+  let main = shell.main;
   if (!main) {
     main = document.createElement("div");
     main.id = "nsonoMain";
@@ -269,7 +336,7 @@ function ensureAppShell() {
     movable.forEach(node => main.appendChild(node));
   }
 
-  document.body.classList.add("nsono-app");
+  markAppShellReady();
   ensureHeaderToggle(main.querySelector("header"));
   renderDrawerPublicShell();
 }
@@ -289,9 +356,6 @@ function ensureDrawerScript() {
 async function bootAppNavigation() {
   ensureAppShell();
   await ensureDrawerScript();
-  // #region agent log
-  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H5',location:'nav.js:bootAppNavigation',message:'nav boot complete',data:{hasToggle:!!document.getElementById('nsonoDrawerToggle'),hasDrawer:!!document.getElementById('nsonoDrawer'),path:location.pathname},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   window.dispatchEvent(new CustomEvent("nsono:drawer-shell-ready"));
 }
 
@@ -310,12 +374,12 @@ function markActiveNavItems() {
 }
 
 function ensureHeaderTitleLayout() {
-  const header = document.querySelector("#nsonoMain header, header");
+  const header = document.querySelector("#nsonoMain header, #NSOSOMain header, header");
   if (!header) {
     return;
   }
 
-  const heading = header.querySelector("h1, h2, h3, .header-title");
+  const heading = header.querySelector("h1, h2, h3, .header-title, .NSOSO-page-title, .nsono-page-title");
   if (!heading) {
     return;
   }
@@ -325,6 +389,7 @@ function ensureHeaderTitleLayout() {
     style.id = "nsonoHeaderTitleLayoutStyle";
     style.textContent = `
 header .nsono-page-title,
+header .NSOSO-page-title,
 header .header-title.nsono-page-title {
   margin: 0;
   text-align: center;
@@ -333,6 +398,7 @@ header .header-title.nsono-page-title {
 }
 @media (min-width: 768px) {
   header .nsono-page-title,
+  header .NSOSO-page-title,
   header .header-title.nsono-page-title {
     text-align: center;
     white-space: nowrap;
@@ -362,7 +428,7 @@ function ensureHeaderSubName() {
     return;
   }
 
-  const header = document.querySelector("#nsonoMain header, header");
+  const header = document.querySelector("#nsonoMain header, #NSOSOMain header, header");
   const heading = header?.querySelector("h1, h2, h3");
   if (!header || !heading) {
     return;

@@ -16,6 +16,30 @@ const ADMIN_SECTION = {
 const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)");
 let drawerMqBound = false;
 let adminInjectionBound = false;
+let drawerChromeRetries = 0;
+const DRAWER_CHROME_MAX_RETRIES = 20;
+
+function drawerEl(...ids) {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) {
+      return el;
+    }
+  }
+  return null;
+}
+
+function getDrawerShell() {
+  return {
+    overlay: drawerEl("nsonoDrawerOverlay", "NSOSODrawerOverlay"),
+    drawer: drawerEl("nsonoDrawer", "NSOSODrawer"),
+    brand: drawerEl("nsonoDrawerBrand", "NSOSODrawerBrand"),
+    nav: drawerEl("nsonoDrawerNav", "NSOSODrawerNav"),
+    adminNav: drawerEl("nsonoDrawerAdmin", "NSOSODrawerAdmin"),
+    main: drawerEl("nsonoMain", "NSOSOMain"),
+    toggle: drawerEl("nsonoDrawerToggle", "NSOSODrawerToggle")
+  };
+}
 
 function resolveDrawerUid() {
   const storedUid = localStorage.getItem("userId");
@@ -103,8 +127,9 @@ function createDrawerItem(item, isActive) {
 }
 
 function refreshPublicDrawerLinks() {
-  const nav = document.getElementById("nsonoDrawerNav");
-  const brand = document.getElementById("nsonoDrawerBrand");
+  const shell = getDrawerShell();
+  const nav = shell.nav;
+  const brand = shell.brand;
   if (!nav || nav.dataset.nsonoPublicReady !== "1") {
     return;
   }
@@ -130,18 +155,22 @@ function refreshPublicDrawerLinks() {
 }
 
 function initDrawerChrome() {
-  const drawer = document.getElementById("nsonoDrawer");
-  const toggle = document.getElementById("nsonoDrawerToggle");
-  const overlay = document.getElementById("nsonoDrawerOverlay");
-
-  // #region agent log
-  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H5',location:'drawer.js:initDrawerChrome',message:'drawer chrome init',data:{hasDrawer:!!drawer,hasToggle:!!toggle,hasOverlay:!!overlay,toggleBound:toggle?.dataset?.nsonoDrawerBound==='1',path:location.pathname},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+  const shell = getDrawerShell();
+  const { drawer, toggle, overlay } = shell;
 
   if (!drawer) {
     return;
   }
 
+  if (!toggle) {
+    if (drawerChromeRetries < DRAWER_CHROME_MAX_RETRIES) {
+      drawerChromeRetries += 1;
+      requestAnimationFrame(initDrawerChrome);
+    }
+    return;
+  }
+
+  drawerChromeRetries = 0;
   refreshPublicDrawerLinks();
   bindDrawerEvents(toggle, overlay, drawer);
   applyResponsiveLayout(drawer, overlay);
@@ -206,10 +235,9 @@ function bindDrawerEvents(toggle, overlay, drawer) {
   }
   toggle.dataset.nsonoDrawerBound = "1";
 
-  toggle.addEventListener("click", () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H5',location:'drawer.js:toggleClick',message:'hamburger clicked',data:{desktop:DESKTOP_MQ.matches,drawerOpen:drawer.classList.contains('open')},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     if (DESKTOP_MQ.matches) {
       return;
     }
@@ -223,16 +251,15 @@ function bindDrawerEvents(toggle, overlay, drawer) {
 
   if (!drawerMqBound) {
     DESKTOP_MQ.addEventListener("change", () => {
-      const currentDrawer = document.getElementById("nsonoDrawer");
-      const currentOverlay = document.getElementById("nsonoDrawerOverlay");
-      applyResponsiveLayout(currentDrawer, currentOverlay);
+      const shell = getDrawerShell();
+      applyResponsiveLayout(shell.drawer, shell.overlay);
     });
     drawerMqBound = true;
   }
 }
 
 function injectAdminLinks() {
-  const adminNav = document.getElementById("nsonoDrawerAdmin");
+  const adminNav = getDrawerShell().adminNav;
   if (!adminNav) {
     return;
   }
@@ -280,7 +307,7 @@ function bindAdminInjection() {
 
   onAuthStateChanged(getAuth(), user => {
     if (!user) {
-      document.getElementById("nsonoDrawerAdmin")?.replaceChildren();
+      getDrawerShell().adminNav?.replaceChildren();
       return;
     }
 

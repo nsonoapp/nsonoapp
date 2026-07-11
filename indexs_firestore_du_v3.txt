@@ -223,7 +223,17 @@ createdBy ASC, createdAt DESC
 ---
 
 📁 users | logs | settings | appConfig
-getDoc / getDocs sans where composite → pas d’index composite à créer
+
+users — requêtes admin (entities.js, company.js)
+  role == + approvalStatus ==                    → admin/js/entities.js, admin/js/company.js
+  companyId == + approvalStatus == + isActive == → fallback client si index absent
+  role ASC, approvalStatus ASC                   → index composite recommandé
+
+entities — requêtes admin
+  companyId ==                                   → admin/js/entities.js, admin/js/company.js
+
+logs | settings | appConfig
+  getDoc / getDocs sans where composite complexe → index mono-champ auto
 
 
 ---
@@ -416,6 +426,30 @@ getDoc / getDocs sans where composite → pas d’index composite à créer
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "approvalStatus", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "companyId", "order": "ASCENDING" },
+        { "fieldPath": "approvalStatus", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "companyId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
@@ -472,6 +506,13 @@ losses
 purchases
   createdAt DESC
 
+users
+  role ASC, approvalStatus ASC
+  companyId ASC, approvalStatus ASC, isActive ASC
+
+entities
+  companyId ASC
+
 
 ---
 
@@ -484,6 +525,7 @@ Mais après split expenses / debts / losses :
   ✅ remplacer par status / category ASC, createdAt DESC par collection
 
 Priorité déploiement :
+  0. role ASC, approvalStatus ASC (users — select admin entité, admin général)
   1. sellerId ASC, createdAt DESC          (stats.js + vendus.js — bloquant filtre vendeur)
   2. productId ASC, createdAt DESC         (sale_items vendus.js — bloquant filtre produit)
   3. payment_status ASC, createdAt DESC    (vendus.js — filtre paiement)

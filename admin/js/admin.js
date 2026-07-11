@@ -1,4 +1,4 @@
-import { guardAdminPage, renderContextBanner, showMessage } from "./admin-shared.js";
+import { guardAdminPage, renderContextBanner, notifyAdmin } from "./admin-shared.js";
 import { getStoredCompanyName, hasSingleCompany } from "./company-auth.js";
 import { getEntityContext } from "./entity-context.js";
 import { db, collection, query, where, getDocs } from "../../js/firebase.js";
@@ -37,7 +37,7 @@ guardAdminPage().then(async () => {
   await renderContextBanner();
   const ctx = getEntityContext();
   const companyName = getStoredCompanyName();
-  showMessage(
+  notifyAdmin(
     "adminDebug",
     companyName
       ? `Hub Admin NSOSO — ${companyName}`
@@ -48,7 +48,7 @@ guardAdminPage().then(async () => {
   renderPendingBadge(pending);
 
   if (!ctx.companyId) {
-    showMessage("adminDebug", "Aucune société en session. Utilisez onboarding.html pour initialiser.", true);
+    notifyAdmin("adminDebug", "Aucune société en session. Utilisez onboarding.html pour initialiser.", true);
   }
 
   const onboardingCard = document.getElementById("onboardingNavCard");

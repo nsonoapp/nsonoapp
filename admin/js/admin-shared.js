@@ -1,4 +1,5 @@
 import { getAuth, onAuthStateChanged } from "../../js/auth.js";
+import { restoreNsonoSession } from "../../js/auth-flow.js";
 import {
   loadUserPermissions,
   canAccessAdmin,
@@ -8,6 +9,8 @@ import { getEntityContext } from "./entity-context.js";
 import { getStoredCompanyName } from "./company-auth.js";
 import { db, doc, getDoc } from "../../js/firebase.js";
 import { ADMIN_COLLECTIONS } from "./admin-collections.js";
+
+let toastTimer = null;
 
 const auth = getAuth();
 const entityNameCache = new Map();
@@ -79,6 +82,110 @@ export function showMessage(boxId, text, isError = false) {
   box.style.color = isError ? "#c0392b" : "#1e7e34";
 }
 
+function ensureToastHost() {
+  let host = document.getElementById("adminToastHost");
+  if (host) {
+    return host;
+  }
+  host = document.createElement("div");
+  host.id = "adminToastHost";
+  host.className = "admin-toast-host";
+  host.setAttribute("aria-live", "polite");
+  document.body.appendChild(host);
+  return host;
+}
+
+export function showAdminToast(text, isError = false) {
+  const message = String(text || "").trim();
+  if (!message) {
+    return;
+  }
+
+  const host = ensureToastHost();
+  const toast = document.createElement("div");
+  toast.className = isError ? "admin-toast admin-toast-error" : "admin-toast admin-toast-success";
+  toast.textContent = message;
+  host.appendChild(toast);
+
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+  }
+  toastTimer = setTimeout(() => {
+    toast.classList.add("admin-toast-hide");
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+export function notifyAdmin(boxId, text, isError = false) {
+  showMessage(boxId, text, isError);
+  showAdminToast(text, isError);
+}
+
+export function confirmDangerAction({
+  title = "Action sensible",
+  message = "",
+  confirmLabel = "Confirmer",
+  cancelLabel = "Annuler"
+} = {}) {
+  return new Promise(resolve => {
+    let modal = document.getElementById("adminDangerModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "adminDangerModal";
+      modal.className = "admin-danger-modal";
+      modal.setAttribute("aria-hidden", "true");
+
+      const content = document.createElement("div");
+      content.className = "admin-danger-modal-content";
+
+      const titleEl = document.createElement("h3");
+      titleEl.id = "adminDangerModalTitle";
+
+      const messageEl = document.createElement("p");
+      messageEl.id = "adminDangerModalMessage";
+
+      const actions = document.createElement("div");
+      actions.className = "admin-danger-modal-actions";
+
+      const confirmBtn = document.createElement("button");
+      confirmBtn.type = "button";
+      confirmBtn.id = "adminDangerModalConfirm";
+      confirmBtn.className = "btn btn-danger";
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.id = "adminDangerModalCancel";
+      cancelBtn.className = "btn btn-secondary";
+
+      actions.append(confirmBtn, cancelBtn);
+      content.append(titleEl, messageEl, actions);
+      modal.appendChild(content);
+      document.body.appendChild(modal);
+
+      cancelBtn.addEventListener("click", () => {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+        resolve(false);
+      });
+      confirmBtn.addEventListener("click", () => {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+        resolve(true);
+      });
+    }
+
+    document.getElementById("adminDangerModalTitle").textContent = title;
+    document.getElementById("adminDangerModalMessage").textContent = message;
+    const confirmBtn = document.getElementById("adminDangerModalConfirm");
+    const cancelBtn = document.getElementById("adminDangerModalCancel");
+    confirmBtn.textContent = confirmLabel;
+    cancelBtn.textContent = cancelLabel;
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+  });
+}
+
 export function sanitizeText(value, max = 120) {
   return String(value || "").trim().slice(0, max);
 }
@@ -144,6 +251,7 @@ export function guardAdminPage(requiredScope = null) {
       }
 
       try {
+        await restoreNsonoSession(user.uid);
         const permissions = await loadUserPermissions(user.uid);
 
         if (!canAccessAdmin(permissions)) {

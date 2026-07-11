@@ -12,7 +12,7 @@ import {
 import {
   guardAdminPage,
   renderContextBanner,
-  showMessage,
+  notifyAdmin,
   sanitizeText,
   bindListActions,
   createTextEl,
@@ -120,7 +120,7 @@ async function toggleRole(item) {
     await loadRoles();
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de la mise à jour du rôle.", true);
+    notifyAdmin("adminDebug", "Erreur lors de la mise à jour du rôle.", true);
   }
 }
 
@@ -130,13 +130,13 @@ async function createRole() {
 
   const name = sanitizeText(nameInput?.value, 80);
   if (!name) {
-    showMessage("adminDebug", "Nom du rôle requis.", true);
+    notifyAdmin("adminDebug", "Nom du rôle requis.", true);
     return;
   }
 
   const scopes = Array.from(selectedScopes);
   if (!scopes.length) {
-    showMessage("adminDebug", "Sélectionnez au moins un scope.", true);
+    notifyAdmin("adminDebug", "Sélectionnez au moins un scope.", true);
     return;
   }
 
@@ -162,11 +162,11 @@ async function createRole() {
     if (nameInput) nameInput.value = "";
     selectedScopes = new Set();
     renderScopeCheckboxes();
-    showMessage("adminDebug", "Rôle créé.");
+    notifyAdmin("adminDebug", "Rôle créé.");
     await loadRoles();
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de la création du rôle.", true);
+    notifyAdmin("adminDebug", "Erreur lors de la création du rôle.", true);
   }
 }
 

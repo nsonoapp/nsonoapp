@@ -38,7 +38,7 @@
 
   <div class="form-box">
     <h3>Mot de passe société</h3>
-    <p style="margin:0 0 12px;font-size:13px;color:#666">Stocké dans <code>company_secrets/main</code> (illisible côté client).</p>
+    <p style="margin:0 0 12px;font-size:13px;color:#666">Utilisé par tous les utilisateurs à la connexion. Non visible après enregistrement.</p>
     <div class="form-grid">
       <label for="companyNewPassword">Nouveau mot de passe</label>
       <input type="password" id="companyNewPassword" minlength="6" maxlength="64">
@@ -50,16 +50,16 @@
 
   <div class="form-box">
     <h3>Admins généraux (max. 5)</h3>
-    <p style="margin:0 0 12px;font-size:13px;color:#666">UID Firebase séparés par des virgules ou retours à la ligne.</p>
-    <label for="masterAdminIdsInput">masterAdminIds</label>
-    <textarea id="masterAdminIdsInput" rows="4" maxlength="640" style="width:100%;margin-bottom:12px"></textarea>
+    <p style="margin:0 0 12px;font-size:13px;color:#666">Sélectionnez les administrateurs d'entité à promouvoir en admin général.</p>
+    <label for="masterAdminSelect">Administrateurs</label>
+    <select id="masterAdminSelect" multiple size="6" style="width:100%;margin-bottom:12px"></select>
     <button type="button" class="btn" id="saveMasterAdminsBtn">Enregistrer les admins généraux</button>
     <div id="masterAdminIdsList" class="admin-copy-list"></div>
   </div>
 
   <div class="form-box">
     <h3>Admins des entités</h3>
-    <p style="margin:0 0 12px;font-size:13px;color:#666">UID des admins d'entité — bouton copier pour validation / rôles.</p>
+    <p style="margin:0 0 12px;font-size:13px;color:#666">Identifiants des admins d'entité — bouton copier pour partage sécurisé.</p>
     <div id="entityAdminsList" class="admin-copy-list"></div>
   </div>
 </div>

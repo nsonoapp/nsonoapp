@@ -14,54 +14,28 @@ import {
 import {
   guardAdminPage,
   renderContextBanner,
-  showMessage,
+  notifyAdmin,
   sanitizeText,
   createTextEl,
-  createCopyButton
+  createCopyButton,
+  confirmDangerAction
 } from "./admin-shared.js";
 import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
 import { getEntityContext, isMasterAdmin } from "./entity-context.js";
 import { hashCompanyPassword } from "./company-auth.js";
+import { APPROVAL_STATUS } from "./admin-constants.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
 
 const companyNameInput = document.getElementById("companyNameEdit");
 const companyCodeInput = document.getElementById("companyCodeEdit");
 const companyNewPasswordInput = document.getElementById("companyNewPassword");
 const companyNewPasswordConfirmInput = document.getElementById("companyNewPasswordConfirm");
-const masterAdminIdsInput = document.getElementById("masterAdminIdsInput");
+const masterAdminSelect = document.getElementById("masterAdminSelect");
 const masterAdminIdsList = document.getElementById("masterAdminIdsList");
 const entityAdminsList = document.getElementById("entityAdminsList");
 
 let currentUserId = null;
-
-function parseMasterAdminIds(raw) {
-  return String(raw || "")
-    .split(/[\s,;]+/)
-    .map(id => id.trim())
-    .filter(Boolean)
-    .slice(0, 5);
-}
-
-async function loadCompanyForm() {
-  const snap = await getDoc(doc(db, ADMIN_COLLECTIONS.companies, SINGLE_COMPANY_ID));
-  if (!snap.exists()) {
-    showMessage("adminDebug", "Société non initialisée. Utilisez onboarding.", true);
-    return;
-  }
-
-  const data = snap.data();
-  if (companyNameInput) {
-    companyNameInput.value = data.name || "";
-  }
-  if (companyCodeInput) {
-    companyCodeInput.value = data.companyCode || "";
-  }
-  if (masterAdminIdsInput) {
-    const ids = Array.isArray(data.masterAdminIds) ? data.masterAdminIds : [];
-    masterAdminIdsInput.value = ids.join("\n");
-    renderUidCopyList(masterAdminIdsList, ids.map(id => ({ label: "Admin général", uid: id })));
-  }
-}
+let masterAdminCandidates = [];
 
 function renderUidCopyList(container, rows) {
   if (!container) {
@@ -86,12 +60,96 @@ function renderUidCopyList(container, rows) {
     code.className = "admin-uid-text";
 
     const copyBtn = createCopyButton("Copier", row.uid, copied => {
-      showMessage("adminDebug", copied ? "UID copié." : "Copie impossible.", !copied);
+      notifyAdmin("adminDebug", copied ? "UID copié." : "Copie impossible.", !copied);
     });
 
     line.append(label, code, copyBtn);
     container.appendChild(line);
   });
+}
+
+async function loadMasterAdminCandidates() {
+  const usersSnap = await getDocs(query(
+    collection(db, ADMIN_COLLECTIONS.users),
+    where("role", "==", "admin"),
+    where("approvalStatus", "==", APPROVAL_STATUS.approved)
+  )).catch(async () => getDocs(collection(db, ADMIN_COLLECTIONS.users)));
+
+  const entitiesSnap = await getDocs(query(
+    collection(db, ADMIN_COLLECTIONS.entities),
+    where("companyId", "==", SINGLE_COMPANY_ID)
+  ));
+
+  const byId = new Map();
+  usersSnap.docs.forEach(d => {
+    const data = d.data();
+    if (
+      data.role === "admin" &&
+      data.approvalStatus === APPROVAL_STATUS.approved &&
+      data.isActive !== false
+    ) {
+      byId.set(d.id, { id: d.id, name: data.name || data.email || d.id });
+    }
+  });
+
+  entitiesSnap.docs.forEach(d => {
+    const data = d.data();
+    if (data.adminId && !byId.has(data.adminId)) {
+      byId.set(data.adminId, { id: data.adminId, name: `Admin ${data.name || d.id}` });
+    }
+  });
+
+  masterAdminCandidates = Array.from(byId.values())
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (!masterAdminSelect) {
+    return;
+  }
+
+  masterAdminSelect.replaceChildren();
+  masterAdminCandidates.forEach(user => {
+    const opt = document.createElement("option");
+    opt.value = user.id;
+    opt.textContent = user.name;
+    masterAdminSelect.appendChild(opt);
+  });
+}
+
+function setMasterAdminSelection(ids = []) {
+  if (!masterAdminSelect) {
+    return;
+  }
+  const selected = new Set(ids);
+  Array.from(masterAdminSelect.options).forEach(opt => {
+    opt.selected = selected.has(opt.value);
+  });
+}
+
+async function loadCompanyForm() {
+  const snap = await getDoc(doc(db, ADMIN_COLLECTIONS.companies, SINGLE_COMPANY_ID));
+  if (!snap.exists()) {
+    notifyAdmin("adminDebug", "Société non initialisée. Utilisez onboarding.", true);
+    return;
+  }
+
+  const data = snap.data();
+  if (companyNameInput) {
+    companyNameInput.value = data.name || "";
+  }
+  if (companyCodeInput) {
+    companyCodeInput.value = data.companyCode || "";
+  }
+
+  await loadMasterAdminCandidates();
+  const ids = Array.isArray(data.masterAdminIds) ? data.masterAdminIds : [];
+  setMasterAdminSelection(ids);
+  renderUidCopyList(
+    masterAdminIdsList,
+    ids.map(id => {
+      const user = masterAdminCandidates.find(u => u.id === id);
+      return { label: user?.name || "Admin général", uid: id };
+    })
+  );
 }
 
 async function loadEntityAdminsList() {
@@ -121,7 +179,16 @@ async function saveCompanyInfo() {
   const companyCode = sanitizeText(companyCodeInput?.value, 32);
 
   if (!name) {
-    showMessage("adminDebug", "Nom société requis.", true);
+    notifyAdmin("adminDebug", "Nom société requis.", true);
+    return;
+  }
+
+  const confirmed = await confirmDangerAction({
+    title: "Modifier les informations société",
+    message: "Le changement de nom ou de code peut impacter la connexion des utilisateurs. Vérifiez que le nouveau nom/code est communiqué à votre équipe.",
+    confirmLabel: "Enregistrer"
+  });
+  if (!confirmed) {
     return;
   }
 
@@ -137,10 +204,10 @@ async function saveCompanyInfo() {
       targetId: SINGLE_COMPANY_ID,
       details: { name }
     });
-    showMessage("adminDebug", "Informations société enregistrées.");
+    notifyAdmin("adminDebug", "Informations société enregistrées.");
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de l'enregistrement.", true);
+    notifyAdmin("adminDebug", "Erreur lors de l'enregistrement.", true);
   }
 }
 
@@ -149,12 +216,21 @@ async function rotateCompanyPassword() {
   const confirm = String(companyNewPasswordConfirmInput?.value || "");
 
   if (password.length < 6) {
-    showMessage("adminDebug", "Mot de passe requis (6 caractères minimum).", true);
+    notifyAdmin("adminDebug", "Mot de passe requis (6 caractères minimum).", true);
     return;
   }
 
   if (password !== confirm) {
-    showMessage("adminDebug", "Les mots de passe ne correspondent pas.", true);
+    notifyAdmin("adminDebug", "Les mots de passe ne correspondent pas.", true);
+    return;
+  }
+
+  const confirmed = await confirmDangerAction({
+    title: "Changer le mot de passe société",
+    message: "Tous les utilisateurs devront utiliser le nouveau mot de passe société à la prochaine connexion. Cette action est irréversible sans connaître l'ancien mot de passe.",
+    confirmLabel: "Mettre à jour le mot de passe"
+  });
+  if (!confirmed) {
     return;
   }
 
@@ -176,18 +252,29 @@ async function rotateCompanyPassword() {
     if (companyNewPasswordConfirmInput) {
       companyNewPasswordConfirmInput.value = "";
     }
-    showMessage("adminDebug", "Mot de passe société mis à jour.");
+    notifyAdmin("adminDebug", "Mot de passe société mis à jour.");
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de la rotation du mot de passe.", true);
+    notifyAdmin("adminDebug", "Erreur lors de la rotation du mot de passe.", true);
   }
 }
 
 async function saveMasterAdmins() {
-  const ids = parseMasterAdminIds(masterAdminIdsInput?.value);
+  const ids = masterAdminSelect
+    ? Array.from(masterAdminSelect.selectedOptions).map(opt => opt.value).filter(Boolean).slice(0, 5)
+    : [];
 
   if (!ids.length) {
-    showMessage("adminDebug", "Au moins un admin général requis.", true);
+    notifyAdmin("adminDebug", "Sélectionnez au moins un admin général.", true);
+    return;
+  }
+
+  const confirmed = await confirmDangerAction({
+    title: "Modifier les admins généraux",
+    message: "Les utilisateurs sélectionnés auront un accès global à toutes les entités. Retirer un admin général limite immédiatement son périmètre.",
+    confirmLabel: "Enregistrer les admins"
+  });
+  if (!confirmed) {
     return;
   }
 
@@ -203,11 +290,11 @@ async function saveMasterAdmins() {
       targetId: SINGLE_COMPANY_ID,
       details: { count: ids.length }
     });
-    showMessage("adminDebug", "Admins généraux enregistrés.");
+    notifyAdmin("adminDebug", "Admins généraux enregistrés.");
     await loadCompanyForm();
   } catch (err) {
     console.error(err);
-    showMessage("adminDebug", "Erreur lors de l'enregistrement des admins.", true);
+    notifyAdmin("adminDebug", "Erreur lors de l'enregistrement des admins.", true);
   }
 }
 

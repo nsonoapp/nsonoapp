@@ -16,6 +16,8 @@ import { auth, onAuthStateChanged } from "./auth.js";
 import { applyEntityScope } from "./nsono-scope.js";
 import { getAppConfig } from "./appConfig.js";
 import { bindActionButton } from "./utils/buttonManager.js";
+import { getSingleCompany, isCompanyGeneralAdmin } from "../admin/js/company-auth.js";
+import { isMasterAdmin } from "../admin/js/entity-context.js";
 
 export const $ = id => document.getElementById(id);
 export const n = v => Number(v) || 0;
@@ -694,14 +696,22 @@ async function initializeStats(user) {
     }
 
     const currentUser = { id: userSnap.id, ...userSnap.data() };
+    const company = await getSingleCompany().catch(() => null);
+    const isGeneralAdmin = isCompanyGeneralAdmin(company, user.uid) || isMasterAdmin();
+    const isAdminStatsPage = location.pathname.includes("/admin/stats.html");
 
-    if (currentUser.role === "seller") {
+    if (currentUser.role === "seller" && !isGeneralAdmin) {
       location.replace("index.html");
       return;
     }
 
-    if (currentUser.role !== "admin") {
+    if (currentUser.role !== "admin" && !isGeneralAdmin) {
       location.replace("404.html");
+      return;
+    }
+
+    if (isAdminStatsPage && !isGeneralAdmin) {
+      location.replace("admin/admin.html");
       return;
     }
 

@@ -1,6 +1,7 @@
 import { getAuth, onAuthStateChanged } from "../../js/auth.js";
+import { restoreNsonoSession } from "../../js/auth-flow.js";
 import { db, collection, getDocs } from "../../js/firebase.js";
-import { isMasterAdmin } from "./entity-context.js";
+import { getSingleCompany, isCompanyGeneralAdmin } from "./company-auth.js";
 import { canAccessAdmin, loadUserPermissions } from "./permissions.js";
 import { setScopeEntityOverride } from "./query-scope.js";
 
@@ -30,7 +31,7 @@ function createFilterBox() {
   return select;
 }
 
-async function initEntityFilter(userId) {
+async function initEntityFilter() {
   const select = createFilterBox();
   if (!select) return;
 
@@ -61,11 +62,12 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  await restoreNsonoSession(user.uid);
   const permissions = await loadUserPermissions(user.uid);
-  // #region agent log
-  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H6',location:'admin-stats.js:auth',message:'admin stats auth check',data:{isMaster:isMasterAdmin(),canAdmin:canAccessAdmin(permissions),localMaster:localStorage.getItem('nsono_isMasterAdmin')},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  if (!isMasterAdmin() || !canAccessAdmin(permissions)) {
+  const company = await getSingleCompany().catch(() => null);
+  const isGeneral = isCompanyGeneralAdmin(company, user.uid);
+
+  if (!isGeneral || !canAccessAdmin(permissions)) {
     location.replace("../index.html");
     return;
   }
@@ -75,11 +77,8 @@ onAuthStateChanged(auth, async (user) => {
     title.textContent = "📈 Statistiques globales";
   }
 
-  if (isMasterAdmin()) {
-    await initEntityFilter(user.uid);
-  } else {
-    setScopeEntityOverride(null);
-  }
+  await initEntityFilter();
+  setScopeEntityOverride(null);
 
   const { initBudgetMonitor } = await import("./budget-monitor.js");
   await initBudgetMonitor();
