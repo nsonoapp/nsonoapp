@@ -602,7 +602,7 @@ function buildPdfPayload() {
 
   return {
     meta: {
-      shopName: state.config?.shopName || "NSONO",
+      shopName: state.config?.shopName || "NSOSO",
       shopAddress: state.config?.shopAddress || "",
       shopPhone: state.config?.shopPhone || "",
       currency: state.currency,

@@ -93,7 +93,7 @@ export const HELP_TUTORIALS = [
     id: "utilisateurs",
     title: "Utilisateurs",
     page: "admin/settings.html",
-    role: "Contrôler qui accède à NSONO et avec quel niveau de permission (admin ou seller).",
+    role: "Contrôler qui accède à NSOSO et avec quel niveau de permission (admin ou seller).",
     howTo: "Dans Paramètres → Utilisateurs, créez un compte, assignez le rôle, activez ou désactivez l'accès.",
     todo: "Un seller par point de vente si possible, révoquer l'accès des anciens employés, ne jamais laisser de compte inactif ouvert.",
     body: "admin : accès Stats, Paramètres, toutes les ventes. seller : vente et modules autorisés, ventes limitées à son sellerId sur Vendus. Les nouveaux comptes passent par approbation admin."
@@ -120,8 +120,8 @@ export const HELP_TUTORIALS = [
     id: "aide",
     title: "Aide",
     page: "help.html",
-    role: "Guide complet NSONO et présentation ES-Company.",
-    howTo: "Parcourez les tutoriels accordéon, lisez « Pourquoi NSONO » et contactez le support si besoin.",
+    role: "Guide complet NSOSO et présentation ES-Company.",
+    howTo: "Parcourez les tutoriels accordéon, lisez « Pourquoi NSOSO » et contactez le support si besoin.",
     todo: "Former chaque nouvel utilisateur avec cette page avant la première vente réelle.",
     body: "Un seul chapitre ouvert à la fois. Retrouvez ici la logique métier, les contacts et le lien vers le site ES-Company."
   }
@@ -131,12 +131,12 @@ export const ES_COMPANY_ABOUT = {
   mission:
     "Moderniser la gestion des commerces locaux grâce à des outils simples, professionnels et adaptés aux réalités africaines.",
   history:
-    "Tout a commencé dans une boutique physique : gestion sur papier, calculs longs, stock difficile à suivre. En échangeant avec d'autres commerçants, la même problématique revenait — organisation, pas seulement visibilité web. NSONO est né pour répondre à ce besoin concret, puis ES-Company est devenue le véhicule pour aider d'autres entreprises à se moderniser.",
+    "Tout a commencé dans une boutique physique : gestion sur papier, calculs longs, stock difficile à suivre. En échangeant avec d'autres commerçants, la même problématique revenait — organisation, pas seulement visibilité web. NSOSO est né pour répondre à ce besoin concret, puis ES-Company est devenue le véhicule pour aider d'autres entreprises à se moderniser.",
   approach:
     "Nous ne vendons pas des logiciels : nous construisons un écosystème numérique qui combine technologie, stratégie business, design professionnel et accompagnement pratique."
 };
 
-export const NSONO_WHY = {
+export const NSOSO_WHY = {
   pointA: [
     "Cahiers papier et calculs manuels",
     "Difficulté à connaître le vrai bénéfice",
@@ -153,9 +153,9 @@ export const NSONO_WHY = {
     "Entreprise plus organisée et rentable"
   ],
   promise:
-    "NSONO aide les commerçants à passer d'une gestion approximative sur papier à une gestion organisée et contrôlée, afin de mieux suivre leur argent, réduire les pertes et prendre de meilleures décisions.",
+    "NSOSO aide les commerçants à passer d'une gestion approximative sur papier à une gestion organisée et contrôlée, afin de mieux suivre leur argent, réduire les pertes et prendre de meilleures décisions.",
   centralMessage:
-    "Vous n'avez pas besoin de travailler plus. Vous avez besoin de mieux contrôler votre activité. NSONO vous aide à savoir où va votre argent, à réduire les pertes et à prendre de meilleures décisions pour développer votre entreprise."
+    "Vous n'avez pas besoin de travailler plus. Vous avez besoin de mieux contrôler votre activité. NSOSO vous aide à savoir où va votre argent, à réduire les pertes et à prendre de meilleures décisions pour développer votre entreprise."
 };
 
 export const HELP_CONTACT = {
@@ -167,5 +167,5 @@ export const HELP_CONTACT = {
   website: "https://es-company98.github.io/Es-Company/",
   whatsappPrimary: "243843858955",
   whatsappMessage:
-    "Bonjour ES-Company, j'utilise NSONO et j'ai besoin d'aide ou de support."
+    "Bonjour ES-Company, j'utilise NSOSO et j'ai besoin d'aide ou de support."
 };

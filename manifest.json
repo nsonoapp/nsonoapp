@@ -1,6 +1,6 @@
-{
-  "name": "NSONO",
-  "short_name": "NSONO",
+﻿{
+  "name": "NSOSO",
+  "short_name": "NSOSO",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -40,8 +40,8 @@ guardAdminPage().then(async () => {
   showMessage(
     "adminDebug",
     companyName
-      ? `Hub Admin NSONO — ${companyName}`
-      : "Hub Admin NSONO — configurez la société via onboarding si besoin"
+      ? `Hub Admin NSOSO — ${companyName}`
+      : "Hub Admin NSOSO — configurez la société via onboarding si besoin"
   );
 
   const pending = await loadPendingCount();

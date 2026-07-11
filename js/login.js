@@ -52,6 +52,9 @@ async function resolveCompanyGate(userData, authUid = "") {
   });
 
   if (!companyAccess.ok) {
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H3-H4',location:'login.js:resolveCompanyGate',message:'company gate failed',data:{error:companyAccess.error||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     throw new Error(companyAccess.error || "company_credentials_required");
   }
 

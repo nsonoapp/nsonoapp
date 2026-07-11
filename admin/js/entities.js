@@ -20,10 +20,11 @@ import {
   bindListActions,
   createTextEl,
   formatAdminDate,
-  cacheEntityName
+  cacheEntityName,
+  createCopyButton
 } from "./admin-shared.js";
 import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
-import { getEntityContext } from "./entity-context.js";
+import { getEntityContext, isMasterAdmin } from "./entity-context.js";
 import { hasScope } from "./permissions.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
 import { hashCompanyPassword } from "./company-auth.js";
@@ -91,20 +92,37 @@ function fillEditAdminSelect(selectedId = "") {
 }
 
 async function loadApprovedUsers() {
-  const snap = await getDocs(query(
-    collection(db, ADMIN_COLLECTIONS.users),
-    where("companyId", "==", SINGLE_COMPANY_ID),
-    where("approvalStatus", "==", APPROVAL_STATUS.approved),
-    where("isActive", "==", true)
-  ));
+  // #region agent log
+  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H2',location:'entities.js:loadApprovedUsers:start',message:'loadApprovedUsers start',data:{},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  let snap;
+  try {
+    snap = await getDocs(query(
+      collection(db, ADMIN_COLLECTIONS.users),
+      where("companyId", "==", SINGLE_COMPANY_ID),
+      where("approvalStatus", "==", APPROVAL_STATUS.approved),
+      where("isActive", "==", true)
+    ));
+  } catch (err) {
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H2',location:'entities.js:loadApprovedUsers:error',message:'loadApprovedUsers query failed',data:{code:err?.code||null,message:err?.message||String(err)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    throw err;
+  }
   approvedUsers = snap.docs
     .map(d => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  // #region agent log
+  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H2',location:'entities.js:loadApprovedUsers:done',message:'loadApprovedUsers result',data:{count:approvedUsers.length,sampleRoles:approvedUsers.slice(0,3).map(u=>u.role)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   fillAdminSelect(adminSelect);
 }
 
 async function loadEntities() {
   const ctx = getEntityContext();
+  // #region agent log
+  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H1',location:'entities.js:loadEntities:start',message:'loadEntities context',data:{isMasterAdmin:ctx.isMasterAdmin,entityId:ctx.entityId||null,companyId:ctx.companyId||null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   if (ctx.isMasterAdmin) {
     const snap = await getDocs(query(
@@ -125,6 +143,9 @@ async function loadEntities() {
   }
 
   entities.forEach(item => cacheEntityName(item.id, item.name));
+  // #region agent log
+  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H1',location:'entities.js:loadEntities:done',message:'loadEntities result',data:{count:entities.length,names:entities.slice(0,5).map(e=>e.name)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   renderList();
 }
 
@@ -148,7 +169,20 @@ function renderList() {
       `Admin: ${adminDisplayName(item.adminId)} • ${item.isActive === false ? "Inactive" : "Active"} • ${formatAdminDate(item.createdAt)}`
     );
     meta.className = "admin-meta";
-    main.append(title, meta);
+
+    if (isMasterAdmin() && item.adminId) {
+      const uidLine = document.createElement("div");
+      uidLine.className = "admin-meta admin-uid-line";
+      const uidText = createTextEl("code", item.adminId);
+      uidText.className = "admin-uid-text";
+      const copyBtn = createCopyButton("Copier UID", item.adminId, copied => {
+        showMessage("adminDebug", copied ? "UID admin copié." : "Copie impossible.", !copied);
+      });
+      uidLine.append(uidText, copyBtn);
+      main.append(title, meta, uidLine);
+    } else {
+      main.append(title, meta);
+    }
 
     const actions = document.createElement("div");
     actions.className = "admin-actions";
@@ -358,9 +392,16 @@ async function createEntity() {
 guardAdminPage("scope_entities").then(async result => {
   currentUserId = result.user.uid;
   permissions = result.permissions;
-  await loadApprovedUsers();
-  await renderContextBanner();
-  await loadEntities();
+  try {
+    await loadApprovedUsers();
+    await renderContextBanner();
+    await loadEntities();
+  } catch (err) {
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H1-H2',location:'entities.js:guardInit:error',message:'entities page init failed',data:{code:err?.code||null,message:err?.message||String(err)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    showMessage("adminDebug", "Erreur chargement entités : " + (err?.message || "inconnue"), true);
+  }
 });
 
 bindActionButton(document.getElementById("createEntityBtn"), createEntity);

@@ -4,6 +4,10 @@ import {
   getDoc,
   updateDoc,
   setDoc,
+  collection,
+  getDocs,
+  query,
+  where,
   Timestamp,
   writeLog
 } from "../../js/firebase.js";
@@ -11,7 +15,9 @@ import {
   guardAdminPage,
   renderContextBanner,
   showMessage,
-  sanitizeText
+  sanitizeText,
+  createTextEl,
+  createCopyButton
 } from "./admin-shared.js";
 import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
 import { getEntityContext, isMasterAdmin } from "./entity-context.js";
@@ -23,6 +29,8 @@ const companyCodeInput = document.getElementById("companyCodeEdit");
 const companyNewPasswordInput = document.getElementById("companyNewPassword");
 const companyNewPasswordConfirmInput = document.getElementById("companyNewPasswordConfirm");
 const masterAdminIdsInput = document.getElementById("masterAdminIdsInput");
+const masterAdminIdsList = document.getElementById("masterAdminIdsList");
+const entityAdminsList = document.getElementById("entityAdminsList");
 
 let currentUserId = null;
 
@@ -51,7 +59,61 @@ async function loadCompanyForm() {
   if (masterAdminIdsInput) {
     const ids = Array.isArray(data.masterAdminIds) ? data.masterAdminIds : [];
     masterAdminIdsInput.value = ids.join("\n");
+    renderUidCopyList(masterAdminIdsList, ids.map(id => ({ label: "Admin général", uid: id })));
   }
+}
+
+function renderUidCopyList(container, rows) {
+  if (!container) {
+    return;
+  }
+  container.replaceChildren();
+
+  if (!rows.length) {
+    container.appendChild(createTextEl("p", "Aucun UID à afficher.", "admin-meta"));
+    return;
+  }
+
+  rows.forEach(row => {
+    if (!row.uid) {
+      return;
+    }
+    const line = document.createElement("div");
+    line.className = "admin-copy-row";
+
+    const label = createTextEl("span", `${row.label} : `);
+    const code = createTextEl("code", row.uid);
+    code.className = "admin-uid-text";
+
+    const copyBtn = createCopyButton("Copier", row.uid, copied => {
+      showMessage("adminDebug", copied ? "UID copié." : "Copie impossible.", !copied);
+    });
+
+    line.append(label, code, copyBtn);
+    container.appendChild(line);
+  });
+}
+
+async function loadEntityAdminsList() {
+  if (!entityAdminsList) {
+    return;
+  }
+
+  const snap = await getDocs(query(
+    collection(db, ADMIN_COLLECTIONS.entities),
+    where("companyId", "==", SINGLE_COMPANY_ID)
+  ));
+
+  const rows = snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+    .map(entity => ({
+      label: entity.name || entity.id,
+      uid: entity.adminId || ""
+    }))
+    .filter(row => row.uid);
+
+  renderUidCopyList(entityAdminsList, rows);
 }
 
 async function saveCompanyInfo() {
@@ -142,6 +204,7 @@ async function saveMasterAdmins() {
       details: { count: ids.length }
     });
     showMessage("adminDebug", "Admins généraux enregistrés.");
+    await loadCompanyForm();
   } catch (err) {
     console.error(err);
     showMessage("adminDebug", "Erreur lors de l'enregistrement des admins.", true);
@@ -163,6 +226,7 @@ guardAdminPage().then(async result => {
 
   await renderContextBanner();
   await loadCompanyForm();
+  await loadEntityAdminsList();
 });
 
 bindActionButton(document.getElementById("saveCompanyInfoBtn"), saveCompanyInfo);

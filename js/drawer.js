@@ -15,7 +15,6 @@ const ADMIN_SECTION = {
 
 const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)");
 let drawerMqBound = false;
-let drawerUiBound = false;
 let adminInjectionBound = false;
 
 function resolveDrawerUid() {
@@ -135,6 +134,10 @@ function initDrawerChrome() {
   const toggle = document.getElementById("nsonoDrawerToggle");
   const overlay = document.getElementById("nsonoDrawerOverlay");
 
+  // #region agent log
+  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H5',location:'drawer.js:initDrawerChrome',message:'drawer chrome init',data:{hasDrawer:!!drawer,hasToggle:!!toggle,hasOverlay:!!overlay,toggleBound:toggle?.dataset?.nsonoDrawerBound==='1',path:location.pathname},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
   if (!drawer) {
     return;
   }
@@ -195,12 +198,18 @@ function applyResponsiveLayout(drawer, overlay) {
 }
 
 function bindDrawerEvents(toggle, overlay, drawer) {
-  if (!toggle || !drawer || drawerUiBound) {
+  if (!toggle || !drawer) {
     return;
   }
-  drawerUiBound = true;
+  if (toggle.dataset.nsonoDrawerBound === "1") {
+    return;
+  }
+  toggle.dataset.nsonoDrawerBound = "1";
 
   toggle.addEventListener("click", () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H5',location:'drawer.js:toggleClick',message:'hamburger clicked',data:{desktop:DESKTOP_MQ.matches,drawerOpen:drawer.classList.contains('open')},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (DESKTOP_MQ.matches) {
       return;
     }
@@ -285,9 +294,12 @@ function bindAdminInjection() {
   window.addEventListener("nsono:session-ready", injectAdminLinks);
 }
 
+let drawerBootstrapped = false;
+
 export function initDrawerNavigation() {
   initDrawerChrome();
+  if (!drawerBootstrapped) {
+    bindAdminInjection();
+    drawerBootstrapped = true;
+  }
 }
-
-initDrawerChrome();
-bindAdminInjection();

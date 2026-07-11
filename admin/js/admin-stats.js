@@ -62,6 +62,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const permissions = await loadUserPermissions(user.uid);
+  // #region agent log
+  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H6',location:'admin-stats.js:auth',message:'admin stats auth check',data:{isMaster:isMasterAdmin(),canAdmin:canAccessAdmin(permissions),localMaster:localStorage.getItem('nsono_isMasterAdmin')},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   if (!isMasterAdmin() || !canAccessAdmin(permissions)) {
     location.replace("../index.html");
     return;

@@ -41,7 +41,7 @@ export async function requestActivityNotificationPermission() {
   return Notification.requestPermission();
 }
 
-export async function pushActivityNotification(title, body, tag = "NSONO-activity") {
+export async function pushActivityNotification(title, body, tag = "NSOSO-activity") {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   if (!isAppInBackground()) return;

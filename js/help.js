@@ -1,7 +1,7 @@
 import {
   HELP_TUTORIALS,
   ES_COMPANY_ABOUT,
-  NSONO_WHY,
+  NSOSO_WHY,
   HELP_CONTACT
 } from "./help/help-tutoriel.js";
 
@@ -134,7 +134,7 @@ function buildWhySection() {
 
   section.replaceChildren();
 
-  const title = createTextEl("h2", "Pourquoi NSONO");
+  const title = createTextEl("h2", "Pourquoi NSOSO");
   title.className = "help-section-title";
 
   const intro = createTextEl(
@@ -149,7 +149,7 @@ function buildWhySection() {
   colA.className = "help-why-col help-why-a";
   colA.appendChild(createTextEl("h3", "Point A — Aujourd'hui"));
   const listA = document.createElement("ul");
-  NSONO_WHY.pointA.forEach(text => {
+  NSOSO_WHY.pointA.forEach(text => {
     const li = document.createElement("li");
     li.textContent = text;
     listA.appendChild(li);
@@ -158,9 +158,9 @@ function buildWhySection() {
 
   const colB = document.createElement("div");
   colB.className = "help-why-col help-why-b";
-  colB.appendChild(createTextEl("h3", "Point B — Avec NSONO"));
+  colB.appendChild(createTextEl("h3", "Point B — Avec NSOSO"));
   const listB = document.createElement("ul");
-  NSONO_WHY.pointB.forEach(text => {
+  NSOSO_WHY.pointB.forEach(text => {
     const li = document.createElement("li");
     li.textContent = text;
     listB.appendChild(li);
@@ -169,10 +169,10 @@ function buildWhySection() {
 
   grid.append(colA, colB);
 
-  const promise = createTextEl("p", NSONO_WHY.promise);
+  const promise = createTextEl("p", NSOSO_WHY.promise);
   promise.className = "help-promise";
 
-  const central = createTextEl("blockquote", NSONO_WHY.centralMessage);
+  const central = createTextEl("blockquote", NSOSO_WHY.centralMessage);
   central.className = "help-quote";
 
   section.append(title, intro, grid, promise, central);

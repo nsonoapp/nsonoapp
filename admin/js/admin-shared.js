@@ -83,6 +83,47 @@ export function sanitizeText(value, max = 120) {
   return String(value || "").trim().slice(0, max);
 }
 
+export async function copyTextToClipboard(text) {
+  const value = String(text || "").trim();
+  if (!value) {
+    return false;
+  }
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    /* fallback */
+  }
+
+  const area = document.createElement("textarea");
+  area.value = value;
+  area.setAttribute("readonly", "readonly");
+  area.style.position = "fixed";
+  area.style.left = "-9999px";
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand("copy");
+  area.remove();
+  return ok;
+}
+
+export function createCopyButton(label, text, onCopied) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn-copy-id";
+  btn.textContent = label;
+  btn.addEventListener("click", async () => {
+    const copied = await copyTextToClipboard(text);
+    if (typeof onCopied === "function") {
+      onCopied(copied);
+    }
+  });
+  return btn;
+}
+
 export function formatAdminDate(ts) {
   if (!ts) {
     return "—";

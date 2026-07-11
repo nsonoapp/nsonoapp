@@ -141,12 +141,12 @@ export function exportStatsPdf() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
 
-    doc.text("NSONO • Business Report", 38, 14);
+    doc.text("NSOSO • Business Report", 38, 14);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
 
-    doc.text(`Shop: ${data.meta.shopName || "NSONO"}`, 38, 20);
+    doc.text(`Shop: ${data.meta.shopName || "NSOSO"}`, 38, 20);
     doc.text(`Currency: ${currency}`, 38, 25);
     doc.text(`Generated: ${new Date(data.meta.generatedAt).toLocaleString()}`, 38, 30);
 
@@ -271,7 +271,7 @@ export function exportStatsPdf() {
     /* FOOTER */
     doc.setFontSize(9);
     doc.setFont("helvetica", "italic");
-    const footerName = data.meta.shopName || "NSONO";
+    const footerName = data.meta.shopName || "NSOSO";
 
     doc.text(`${footerName} • Confidential Business Report`, 15, 290);
 

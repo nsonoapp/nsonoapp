@@ -130,9 +130,16 @@ export async function verifyCompanyPasswordViaRules(companyId, plainPassword) {
       createdAt: Timestamp.now()
     });
     await cleanupAuthProbe(probeRef);
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H4',location:'company-auth.js:verifyCompany:ok',message:'company password probe OK',data:{hashLen:passwordHash.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return true;
-  } catch {
+  } catch (err) {
     await cleanupAuthProbe(probeRef);
+    const secretSnap = await getDoc(doc(db, ADMIN_COLLECTIONS.companySecrets, SINGLE_COMPANY_ID));
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H4',location:'company-auth.js:verifyCompany:fail',message:'company password probe FAIL',data:{secretExists:secretSnap.exists(),storedLen:secretSnap.exists()?String(secretSnap.data()?.passwordHash||'').length:0,hashLen:passwordHash.length,code:err?.code||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return false;
   }
 }
@@ -142,6 +149,10 @@ export async function verifyEntityPasswordViaRules(entityId, plainPassword) {
   if (!targetId) {
     return false;
   }
+
+  const secretSnap = await getDoc(doc(db, ADMIN_COLLECTIONS.entitySecrets, targetId));
+  const secretExists = secretSnap.exists();
+  const storedLen = secretSnap.exists() ? String(secretSnap.data()?.passwordHash || "").length : 0;
 
   const passwordHash = await hashCompanyPassword(plainPassword);
   if (!passwordHash) {
@@ -164,9 +175,15 @@ export async function verifyEntityPasswordViaRules(entityId, plainPassword) {
       createdAt: Timestamp.now()
     });
     await cleanupAuthProbe(probeRef);
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H3',location:'company-auth.js:verifyEntity:ok',message:'entity password probe OK',data:{entityId:targetId,secretExists,storedLen,hashLen:passwordHash.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return true;
-  } catch {
+  } catch (err) {
     await cleanupAuthProbe(probeRef);
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H3',location:'company-auth.js:verifyEntity:fail',message:'entity password probe FAIL',data:{entityId:targetId,secretExists,storedLen,hashLen:passwordHash.length,code:err?.code||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return false;
   }
 }
@@ -258,6 +275,9 @@ export async function resolveCompanyAccess({
     entityPasswordValue
   );
   if (!entityPasswordOk) {
+    // #region agent log
+    fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H3',location:'company-auth.js:resolveCompanyAccess',message:'entity password rejected at login gate',data:{entityId:entity.id,entityName:entity.name||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return { ok: false, error: "entity_password_invalid", company: null };
   }
 

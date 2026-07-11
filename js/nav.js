@@ -3,7 +3,7 @@ const currentPage = location.pathname.split("/").pop();
 
 const DRAWER_HUB_ITEM = {
   href: "index.html",
-  title: "NSONO",
+  title: "NSOSO",
   subtitle: "Espace de travail",
   icon: "◆"
 };
@@ -275,16 +275,31 @@ function ensureAppShell() {
 }
 
 function ensureDrawerScript() {
-  if (document.querySelector('script[data-nsono-drawer="1"]')) {
-    return;
-  }
-  const script = document.createElement("script");
-  script.type = "module";
-  script.src = resolveAssetPath("js/drawer.js");
-  script.defer = true;
-  script.dataset.nsonoDrawer = "1";
-  document.body.appendChild(script);
+  return import(resolveAssetPath("js/drawer.js"))
+    .then(mod => {
+      if (typeof mod.initDrawerNavigation === "function") {
+        mod.initDrawerNavigation();
+      }
+    })
+    .catch(err => {
+      console.warn("NSOSO drawer:", err);
+    });
 }
+
+async function bootAppNavigation() {
+  ensureAppShell();
+  await ensureDrawerScript();
+  // #region agent log
+  fetch('http://127.0.0.1:7701/ingest/67d75259-8610-4541-96c0-966149fbc8cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08c95e'},body:JSON.stringify({sessionId:'08c95e',hypothesisId:'H5',location:'nav.js:bootAppNavigation',message:'nav boot complete',data:{hasToggle:!!document.getElementById('nsonoDrawerToggle'),hasDrawer:!!document.getElementById('nsonoDrawer'),path:location.pathname},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  window.dispatchEvent(new CustomEvent("nsono:drawer-shell-ready"));
+}
+
+window.addEventListener("nsono:drawer-shell-ready", () => {
+  import(resolveAssetPath("js/drawer.js"))
+    .then(mod => mod.initDrawerNavigation?.())
+    .catch(() => {});
+});
 
 function markActiveNavItems() {
   document.querySelectorAll(".nav-item").forEach(item => {
@@ -398,8 +413,7 @@ function applyRoleVisibility() {
 }
 
 ensureDrawerStyles();
-ensureAppShell();
-ensureDrawerScript();
+bootAppNavigation();
 markActiveNavItems();
 ensureHeaderTitleLayout();
 ensureHeaderSubName();
