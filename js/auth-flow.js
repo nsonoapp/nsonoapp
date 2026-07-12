@@ -152,7 +152,7 @@ export function applyNsonoSession(userData, company = null) {
 export async function validateCompanyAccess(credentials = {}) {
   const hasCompanies = await hasActiveCompanies();
   if (!hasCompanies) {
-    return { ok: false, error: "company_not_found", company: null };
+    return { ok: false, error: "company_not_configured", company: null };
   }
   return resolveCompanyAccess(credentials);
 }
@@ -257,11 +257,19 @@ export function authErrorMessage(err, fallback = "Erreur") {
   }
 
   if (message === "company_required") {
-    return "Nom ou code société requis.";
+    return "Nom de société requis.";
+  }
+
+  if (message === "company_not_configured") {
+    return "Aucune société configurée. Contactez le support.";
+  }
+
+  if (message === "company_name_invalid") {
+    return "Nom de société incorrect. Vérifiez auprès de votre administrateur.";
   }
 
   if (message === "company_not_found") {
-    return "Société introuvable.";
+    return "Nom de société incorrect. Vérifiez auprès de votre administrateur.";
   }
 
   if (message === "company_password_required") {
@@ -273,7 +281,7 @@ export function authErrorMessage(err, fallback = "Erreur") {
   }
 
   if (message === "company_credentials_required") {
-    return "Identifiants société requis.";
+    return "Identifiants société incomplets.";
   }
 
   if (message === "entity_required") {

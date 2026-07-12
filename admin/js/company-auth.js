@@ -186,23 +186,21 @@ export function isCompanyGeneralAdmin(company, userId) {
 export async function resolveCompanyAccess({
   companyIdentifier,
   companyPassword,
-  entityIdentifier,
-  entityPassword,
   userId = null
 }) {
   const company = await getSingleCompany();
   if (!company) {
-    return { ok: false, error: "company_not_found", company: null };
+    return { ok: false, error: "company_not_configured", company: null };
   }
 
   const key = String(companyIdentifier || "").trim();
-  if (!key) {
-    return { ok: false, error: "company_required", company: null };
-  }
+  let matched = company;
 
-  const matched = await resolveCompanyByNameOrCode(key);
-  if (!matched) {
-    return { ok: false, error: "company_not_found", company: null };
+  if (key) {
+    matched = await resolveCompanyByNameOrCode(key);
+    if (!matched) {
+      return { ok: false, error: "company_name_invalid", company: null };
+    }
   }
 
   const effectiveUserId = String(
@@ -223,39 +221,12 @@ export async function resolveCompanyAccess({
     return { ok: false, error: "company_password_invalid", company: null };
   }
 
-  if (isGeneralAdmin) {
-    return {
-      ok: true,
-      company: matched,
-      entity: null,
-      isGeneralAdmin: true
-    };
-  }
-
-  const entityKey = String(entityIdentifier || "").trim();
-  if (!entityKey) {
-    return { ok: false, error: "entity_required", company: null };
-  }
-
-  const entity = await resolveEntityByName(SINGLE_COMPANY_ID, entityKey);
-  if (!entity) {
-    return { ok: false, error: "entity_not_found", company: null };
-  }
-
-  const entityPasswordValue = String(entityPassword || "");
-  if (!entityPasswordValue) {
-    return { ok: false, error: "entity_password_required", company: null };
-  }
-
-  const entityPasswordOk = await verifyEntityPasswordViaRules(
-    entity.id,
-    entityPasswordValue
-  );
-  if (!entityPasswordOk) {
-    return { ok: false, error: "entity_password_invalid", company: null };
-  }
-
-  return { ok: true, company: matched, entity, isGeneralAdmin: false };
+  return {
+    ok: true,
+    company: matched,
+    entity: null,
+    isGeneralAdmin
+  };
 }
 
 export function storeCompanySession(companyId, companyName) {

@@ -138,6 +138,26 @@
       margin: 4px 0 10px;
       line-height: 1.4;
     }
+
+    .form-feedback {
+      font-size: 13px;
+      line-height: 1.4;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+
+    .form-feedback.error {
+      background: #fdecea;
+      color: #b42318;
+      border: 1px solid #fecdca;
+    }
+
+    .form-feedback.success {
+      background: #ecfdf3;
+      color: #027a48;
+      border: 1px solid #abefc6;
+    }
   </style>
 </head>
 <body>
@@ -170,7 +190,7 @@
 
       <div class="field-group">
         <label for="companyName">Nom de la société</label>
-        <input type="text" id="companyName" placeholder="Nom ou code société" maxlength="80" autocomplete="organization" required>
+        <input type="text" id="companyName" placeholder="Nom ou code société (optionnel)" maxlength="80" autocomplete="organization">
       </div>
 
       <div class="field-group">
@@ -181,20 +201,8 @@
         </div>
       </div>
 
-      <div class="field-group">
-        <label for="entityName">Entité</label>
-        <input type="text" id="entityName" placeholder="Nom ou ID entité" maxlength="80" autocomplete="off" required>
-      </div>
-
-      <div class="field-group">
-        <label for="entityPassword">Mot de passe entité</label>
-        <div class="password-field">
-          <input type="password" id="entityPassword" required autocomplete="off" minlength="6">
-          <button type="button" class="password-toggle" data-password-toggle="entityPassword" aria-label="Afficher le mot de passe entité"></button>
-        </div>
-      </div>
-
-      <p class="hint">Votre compte est créé avec rôle <code>user</code> et statut <code>pending</code> jusqu'à validation admin.</p>
+      <p class="hint">Votre compte sera validé par un administrateur avant activation.</p>
+      <p id="signupFeedback" class="form-feedback error" hidden aria-live="polite"></p>
 
       <div class="checkbox-group">
         <input type="checkbox" id="isActive" checked>
