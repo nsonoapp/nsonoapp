@@ -59,12 +59,12 @@ function setEntityFieldsRequired(required) {
   }
   if (loginHintEl) {
     loginHintEl.textContent = required
-      ? "Mot de passe société (company_secrets) obligatoire. Entité + mot de passe entité (entity_secrets) obligatoires pour les comptes locaux hors admins généraux."
-      : "Admin général : mot de passe société uniquement. Les champs entité sont ignorés.";
+      ? "Saisissez aussi votre entité et son mot de passe."
+      : "Admin général : mot de passe société uniquement.";
   }
 }
 
-setEntityFieldsRequired(true);
+setEntityFieldsRequired(false);
 
 async function resolveCompanyGate(userData, authUid = "") {
   const uid = authUid || userData?.userId || userData?.id || getAuth().currentUser?.uid || "";

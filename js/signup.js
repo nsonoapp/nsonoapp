@@ -1,8 +1,4 @@
 import {
-  db,
-  doc,
-  Timestamp,
-  writeBatch,
   writeLog
 } from "./firebase.js";
 
@@ -12,20 +8,23 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
+  deleteUser,
   setPersistence,
   browserLocalPersistence
 } from "./auth.js";
 
 import {
+  createSignupUserProfile,
   ensureFirestoreUser,
-  ensureSystemMeta,
   completeLogin,
   isAllowedRole,
   waitForAuthReady,
   authErrorMessage,
   validateCompanyAccess,
   assertUserCompanyMatch,
-  isUserApproved
+  isUserApproved,
+  beginSignupFlow,
+  endSignupFlow
 } from "./auth-flow.js";
 
 import { initPasswordToggles } from "./password-toggle.js";
@@ -38,11 +37,24 @@ const googleProvider = new GoogleAuthProvider();
 
 initPasswordToggles();
 
+async function cleanupFailedSignup() {
+  const user = auth.currentUser;
+  if (!user) {
+    return;
+  }
+
+  try {
+    await deleteUser(user);
+  } catch (deleteErr) {
+    console.warn("[signup] nettoyage compte Auth:", deleteErr?.code || deleteErr?.message);
+    await signOut(auth);
+  }
+}
+
 bindFormAction(signupForm, async () => {
   const fullName = document.getElementById("fullName")?.value.trim();
   const email = document.getElementById("email")?.value.trim().toLowerCase();
   const password = document.getElementById("password")?.value;
-  const isActive = document.getElementById("isActive")?.checked ?? true;
   const companyName = document.getElementById("companyName")?.value.trim();
   const companyPassword = document.getElementById("companyPassword")?.value || "";
   const entityName = document.getElementById("entityName")?.value.trim();
@@ -58,6 +70,7 @@ bindFormAction(signupForm, async () => {
     return;
   }
 
+  beginSignupFlow();
   try {
     console.log("[signup] createUserWithEmailAndPassword", { email });
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -65,47 +78,25 @@ bindFormAction(signupForm, async () => {
     await waitForAuthReady(auth, uid);
     console.log("[signup] Auth OK, uid:", uid);
 
-    const { metaRef, usersCount } = await ensureSystemMeta();
-
     const companyAccess = await validateCompanyAccess({
       companyIdentifier: companyName,
       companyPassword,
       entityIdentifier: entityName,
-      entityPassword
+      entityPassword,
+      userId: uid
     });
     if (!companyAccess.ok) {
-      await signOut(auth);
       throw new Error(companyAccess.error || "company_credentials_required");
     }
 
-    const nsonoFields = {
-      companyId: companyAccess.company.id,
-      entityId: companyAccess.entity?.id || null,
-      approvalStatus: "pending",
-      roleIds: []
-    };
-
-    const batch = writeBatch(db);
-
-    console.log("[signup] batch.set users/", uid);
-    batch.set(doc(db, "users", uid), {
-      userId: uid,
+    await createSignupUserProfile({
+      uid,
       name: fullName,
       email,
-      role: "user",
-      isActive: false,
-      roleIds: [],
-      createdAt: Timestamp.now(),
-      ...nsonoFields
+      companyId: companyAccess.company.id,
+      entityId: companyAccess.entity?.id || null
     });
-
-    console.log("[signup] batch.update system/meta usersCount:", usersCount + 1);
-    batch.update(metaRef, {
-      usersCount: usersCount + 1
-    });
-
-    await batch.commit();
-    console.log("[signup] batch.commit OK");
+    console.log("[signup] profil Firestore créé");
 
     await writeLog({
       userId: uid,
@@ -113,8 +104,9 @@ bindFormAction(signupForm, async () => {
       details: {
         email,
         role: "user",
-        companyId: nsonoFields.companyId || null,
-        approvalStatus: nsonoFields.approvalStatus || null
+        companyId: companyAccess.company.id,
+        entityId: companyAccess.entity?.id || null,
+        approvalStatus: "pending"
       }
     });
 
@@ -123,23 +115,29 @@ bindFormAction(signupForm, async () => {
     window.location.replace("login.html");
   } catch (err) {
     console.error("[signup] erreur:", err?.code || err?.message, err);
-    alert(authErrorMessage(err, "Erreur création compte"));
+    if (auth.currentUser) {
+      await cleanupFailedSignup();
+    }
+    alert(authErrorMessage(err, "Erreur lors de la création du compte"));
+  } finally {
+    endSignupFlow();
   }
 });
 
 bindActionButton(googleSignupBtn, async () => {
+  const companyName = document.getElementById("companyName")?.value.trim();
+  const companyPassword = document.getElementById("companyPassword")?.value || "";
+  const entityName = document.getElementById("entityName")?.value.trim();
+  const entityPassword = document.getElementById("entityPassword")?.value || "";
+
+  if (!companyName || !companyPassword || !entityName || !entityPassword) {
+    alert("Remplis tous les champs société et entité");
+    return;
+  }
+
+  beginSignupFlow();
   try {
     await setPersistence(auth, browserLocalPersistence);
-
-    const companyName = document.getElementById("companyName")?.value.trim();
-    const companyPassword = document.getElementById("companyPassword")?.value || "";
-    const entityName = document.getElementById("entityName")?.value.trim();
-    const entityPassword = document.getElementById("entityPassword")?.value || "";
-
-    if (!companyName || !companyPassword || !entityName || !entityPassword) {
-      alert("Remplis tous les champs société et entité");
-      return;
-    }
 
     console.log("[signup] signInWithPopup Google");
     const result = await signInWithPopup(auth, googleProvider);
@@ -154,13 +152,10 @@ bindActionButton(googleSignupBtn, async () => {
       userId: result.user.uid
     });
     if (!companyAccess.ok) {
-      await signOut(auth);
       throw new Error(companyAccess.error || "company_credentials_required");
     }
 
-    const isActive = document.getElementById("isActive")?.checked ?? true;
     const userData = await ensureFirestoreUser(result.user, {
-      isActive,
       companyId: companyAccess.company?.id || null,
       entityId: companyAccess.entity?.id || null
     });
@@ -172,9 +167,9 @@ bindActionButton(googleSignupBtn, async () => {
     }
 
     if (!isUserApproved(userData)) {
-      localStorage.setItem("userId", userData.userId || userData.id || "");
-      localStorage.setItem("userRole", userData.role || "user");
-      window.location.replace("waiting.html");
+      await signOut(auth);
+      alert("Compte créé ! En attente d'approbation par un administrateur.");
+      window.location.replace("login.html");
       return;
     }
 
@@ -185,9 +180,9 @@ bindActionButton(googleSignupBtn, async () => {
     }
 
     if (!isAllowedRole(userData.role)) {
-      localStorage.setItem("userId", userData.userId || userData.id || "");
-      localStorage.setItem("userRole", userData.role || "user");
-      window.location.replace("waiting.html");
+      await signOut(auth);
+      alert("Compte créé ! En attente d'approbation par un administrateur.");
+      window.location.replace("login.html");
       return;
     }
 
@@ -207,6 +202,11 @@ bindActionButton(googleSignupBtn, async () => {
     window.location.replace("index.html");
   } catch (err) {
     console.error("[signup] Google erreur:", err?.code || err?.message, err);
-    alert(authErrorMessage(err, "Erreur inscription Google"));
+    if (auth.currentUser) {
+      await cleanupFailedSignup();
+    }
+    alert(authErrorMessage(err, "Erreur lors de l'inscription Google"));
+  } finally {
+    endSignupFlow();
   }
 });

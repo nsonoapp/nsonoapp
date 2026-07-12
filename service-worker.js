@@ -1,5 +1,5 @@
 const BASE_PATH =
-  self.location.pathname.replace(/\/service-workerA\.js$/, "") || "";
+  self.location.pathname.replace(/\/service-worker\.js$/, "") || "";
 
 const withBase = (path) => {
   if (!path.startsWith("/")) {

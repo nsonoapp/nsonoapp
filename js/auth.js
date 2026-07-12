@@ -107,6 +107,10 @@ function startAuthGuard() {
 
     const profileSnap = await getDoc(doc(db, "users", user.uid));
     if (!profileSnap.exists()) {
+      const { isSignupFlowActive } = await import("./auth-flow.js");
+      if (publicPage || isSignupFlowActive()) {
+        return;
+      }
       await signOut(auth);
       redirectTo("login.html");
       return;

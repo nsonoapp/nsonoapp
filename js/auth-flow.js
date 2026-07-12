@@ -3,7 +3,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  writeBatch,
   Timestamp,
   writeLog,
   collection,
@@ -27,6 +26,19 @@ import {
 } from "../admin/js/permissions.js";
 
 const auth = getAuth();
+let signupFlowActive = false;
+
+export function beginSignupFlow() {
+  signupFlowActive = true;
+}
+
+export function endSignupFlow() {
+  signupFlowActive = false;
+}
+
+export function isSignupFlowActive() {
+  return signupFlowActive;
+}
 
 export function isAllowedRole(role) {
   return role === "admin" || role === "seller";
@@ -190,6 +202,28 @@ export async function restoreNsonoSession(uid) {
   window.dispatchEvent(new CustomEvent("nsono:session-ready", { detail: { uid } }));
 }
 
+export async function createSignupUserProfile({
+  uid,
+  name,
+  email,
+  companyId = null,
+  entityId = null
+}) {
+  console.log("[auth-flow] setDoc users/", uid);
+  await setDoc(doc(db, "users", uid), {
+    userId: uid,
+    name,
+    email,
+    role: "user",
+    isActive: false,
+    roleIds: [],
+    approvalStatus: "pending",
+    companyId,
+    entityId,
+    createdAt: Timestamp.now()
+  });
+}
+
 export async function ensureFirestoreUser(user, options = {}) {
   const uid = user.uid;
 
@@ -200,35 +234,13 @@ export async function ensureFirestoreUser(user, options = {}) {
     return existing;
   }
 
-  const { metaRef, usersCount } = await ensureSystemMeta();
-
-  const batch = writeBatch(db);
-
-  console.log("[auth-flow] batch.set users/", uid);
-  const userPayload = {
-    userId: uid,
+  await createSignupUserProfile({
+    uid,
     name: user.displayName || user.email?.split("@")[0] || "Utilisateur",
     email: (user.email || "").toLowerCase(),
-    role: "user",
-    isActive: false,
-    roleIds: [],
-    approvalStatus: "pending",
-    createdAt: Timestamp.now()
-  };
-
-  if (options.companyId) {
-    userPayload.companyId = options.companyId;
-    userPayload.entityId = options.entityId || null;
-  }
-
-  batch.set(doc(db, "users", uid), userPayload);
-
-  batch.update(metaRef, {
-    usersCount: usersCount + 1
+    companyId: options.companyId || null,
+    entityId: options.entityId || null
   });
-
-  console.log("[auth-flow] batch.commit users/", uid);
-  await batch.commit();
 
   return loadUserProfile(uid);
 }
@@ -257,7 +269,11 @@ export function authErrorMessage(err, fallback = "Erreur") {
   }
 
   if (message === "company_password_invalid") {
-    return "Mot de passe société incorrect. Vérifiez le mot de passe saisi dans le champ société (company_secrets/main), pas celui de l'entité.";
+    return "Mot de passe société incorrect.";
+  }
+
+  if (message === "company_credentials_required") {
+    return "Identifiants société requis.";
   }
 
   if (message === "entity_required") {
@@ -273,7 +289,7 @@ export function authErrorMessage(err, fallback = "Erreur") {
   }
 
   if (message === "entity_password_invalid") {
-    return "Mot de passe entité incorrect. Vérifiez le nom d'entité (entities) et le mot de passe entité (entity_secrets), distinct du mot de passe société.";
+    return "Mot de passe entité incorrect.";
   }
 
   if (message === "company_mismatch") {
@@ -300,8 +316,13 @@ export function authErrorMessage(err, fallback = "Erreur") {
   if (code === "auth/popup-closed-by-user") return "Connexion Google annulée";
   if (code === "auth/popup-blocked") return "Popup bloquée par le navigateur";
   if (code === "auth/cancelled-popup-request") return "Connexion Google annulée";
-  if (code === "permission-denied") return "Accès refusé. Vérifiez les règles Firestore.";
-  if (code === "meta_missing") return "Configuration system/meta manquante.";
+  if (code === "permission-denied") return "Accès refusé. Réessayez ou contactez l'administrateur.";
+  if (code === "already-exists") return "Ce compte existe déjà. Connectez-vous.";
+  if (code === "meta_missing") return "Configuration système manquante.";
+
+  if (message) {
+    return message;
+  }
 
   return fallback;
 }

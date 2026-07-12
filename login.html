@@ -162,7 +162,7 @@
       <div class="field-group">
         <label for="companyPassword">Mot de passe société</label>
         <div class="password-field">
-          <input type="password" id="companyPassword" placeholder="Mot de passe société (company_secrets)" autocomplete="off" required minlength="6">
+          <input type="password" id="companyPassword" placeholder="Mot de passe société" autocomplete="off" required minlength="6">
           <button type="button" class="password-toggle" data-password-toggle="companyPassword" aria-label="Afficher le mot de passe société"></button>
         </div>
       </div>
@@ -176,13 +176,13 @@
       <div class="field-group">
         <label for="entityPassword">Mot de passe entité</label>
         <div class="password-field">
-          <input type="password" id="entityPassword" placeholder="Mot de passe entité (entity_secrets)" autocomplete="off" minlength="6">
+          <input type="password" id="entityPassword" placeholder="Mot de passe entité" autocomplete="off" minlength="6">
           <button type="button" class="password-toggle" data-password-toggle="entityPassword" aria-label="Afficher le mot de passe entité"></button>
         </div>
       </div>
       </div>
 
-      <p class="hint" id="loginHint">Mot de passe société → company_secrets/main. Mot de passe entité → entity_secrets. Admins généraux : société seule. Autres comptes : société + entité obligatoires.</p>
+      <p class="hint" id="loginHint">Mot de passe société obligatoire. Entité requise seulement pour les comptes non admin.</p>
 
       <div class="checkbox-group">
         <input type="checkbox" id="rememberMe">

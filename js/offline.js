@@ -600,11 +600,11 @@ export async function registerServiceWorker() {
     return;
   }
 
-  const SW_FILE = "service-workerA.js";
+  const SW_FILE = "service-worker.js";
+  const LEGACY_SW_FILES = ["service-workerA.js"];
 
   try {
     const registrations = await navigator.serviceWorker.getRegistrations();
-    const targetName = `/${SW_FILE}`;
 
     await Promise.all(
       registrations.map(async (registration) => {
@@ -613,7 +613,8 @@ export async function registerServiceWorker() {
           registration.waiting ||
           registration.installing;
         const scriptUrl = worker?.scriptURL || "";
-        if (!scriptUrl.endsWith(targetName)) {
+        const isLegacy = LEGACY_SW_FILES.some((name) => scriptUrl.includes(name));
+        if (isLegacy) {
           await registration.unregister();
         }
       })

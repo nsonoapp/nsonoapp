@@ -1,12 +1,5 @@
-const SW_FILE = "service-workerA.js";
-
-function getRegistrationScriptUrl(registration) {
-  const worker =
-    registration.active ||
-    registration.waiting ||
-    registration.installing;
-  return worker?.scriptURL || "";
-}
+const SW_FILE = "service-worker.js";
+const LEGACY_SW_FILES = ["service-workerA.js"];
 
 async function unregisterLegacyServiceWorkers() {
   if (!("serviceWorker" in navigator)) {
@@ -14,25 +7,29 @@ async function unregisterLegacyServiceWorkers() {
   }
 
   const registrations = await navigator.serviceWorker.getRegistrations();
-  const targetName = `/${SW_FILE}`;
-
   await Promise.all(
     registrations.map(async (registration) => {
-      const scriptUrl = getRegistrationScriptUrl(registration);
-      if (!scriptUrl.endsWith(targetName)) {
+      const scriptUrl =
+        registration.active?.scriptURL ||
+        registration.waiting?.scriptURL ||
+        registration.installing?.scriptURL ||
+        "";
+
+      const isLegacy = LEGACY_SW_FILES.some((name) => scriptUrl.includes(name));
+      if (isLegacy) {
         await registration.unregister();
       }
     })
   );
 }
 
-async function registerNsosoServiceWorker() {
+async function registerServiceWorker() {
   const swUrl = new URL(SW_FILE, window.location.href);
   await navigator.serviceWorker.register(swUrl.pathname);
 }
 
 window.addEventListener("load", () => {
   unregisterLegacyServiceWorkers()
-    .then(registerNsosoServiceWorker)
+    .then(registerServiceWorker)
     .catch(() => {});
 });
