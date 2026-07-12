@@ -19,7 +19,7 @@ import {
   isCompanyGeneralAdmin,
   getSingleCompany
 } from "../admin/js/company-auth.js";
-import { setEntityContext } from "../admin/js/entity-context.js";
+import { setEntityContext, clearEntityContext } from "../admin/js/entity-context.js";
 import {
   loadUserPermissions,
   clearPermissionsCache

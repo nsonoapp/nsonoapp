@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com;">
-  <title>NSOSO - Page d'attente</title>
+  <title>NSOSO - En attente</title>
   <style>
     * { box-sizing: border-box; font-family: Arial, sans-serif; }
     body {
@@ -19,39 +19,105 @@
     }
     .card {
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-      padding: 24px;
+      padding: 28px 24px;
       text-align: center;
     }
-    .title {
-      margin: 0 0 8px;
+    .brand {
+      margin: 0 0 6px;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
       color: #0B3D2E;
+      font-weight: 700;
+    }
+    .title {
+      margin: 0 0 10px;
+      color: #0B3D2E;
+      font-size: 22px;
+    }
+    .badge {
+      display: inline-block;
+      margin: 0 0 14px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(212, 175, 55, 0.18);
+      color: #8a6d1d;
+    }
+    .badge.rejected {
+      background: rgba(217, 45, 32, 0.12);
+      color: #b42318;
     }
     .text {
-      margin: 0 0 16px;
-      line-height: 1.5;
+      margin: 0 0 10px;
+      line-height: 1.55;
       font-size: 14px;
       color: #444;
+    }
+    .hint {
+      margin: 0 0 20px;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.45;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
     .btn {
       border: none;
       border-radius: 10px;
-      padding: 10px 14px;
+      padding: 12px 14px;
       cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-primary {
       color: #fff;
       background: #0B3D2E;
-      font-size: 14px;
+    }
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+    .btn-link {
+      background: transparent;
+      color: #0B3D2E;
+      text-decoration: underline;
+      font-weight: 500;
+    }
+    .feedback {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      background: #fdecea;
+      color: #b42318;
+      border: 1px solid #fecdca;
+    }
+    .feedback[hidden] {
+      display: none;
     }
   </style>
 </head>
 <body>
   <main class="card" id="waitingCard">
-    <h1 class="title">Page d'attente</h1>
-    <p class="text">Votre compte est en attente d'approbation administrateur ou n'a pas encore un role autorise.</p>
-    <button type="button" class="btn" id="logoutBtn">Se deconnecter</button>
+    <p class="brand">NSOSO</p>
+    <h1 class="title" id="waitingTitle">En attente</h1>
+    <span class="badge" id="waitingBadge">En attente</span>
+    <p class="text" id="waitingText">Votre compte est en cours de validation.</p>
+    <p class="hint" id="waitingHint">Cette page se met à jour automatiquement dès qu'un administrateur approuve votre accès.</p>
+    <p id="waitingFeedback" class="feedback" hidden aria-live="polite"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="logoutBtn">Se déconnecter</button>
+      <button type="button" class="btn btn-link" id="loginLinkBtn">Retour à la connexion</button>
+    </div>
   </main>
   <script type="module" src="js/waiting.js"></script>
 </body>
