@@ -280,6 +280,11 @@
   display: none;
 }
 
+.drawer-admin-slot:not(:empty) {
+  display: flex;
+  flex-direction: column;
+}
+
 #nsonoMain,
 #NSOSOMain {
   width: 100%;
@@ -381,6 +386,26 @@ header:has(#nsonoDrawerToggle) > div:first-of-type {
   #NSOSOMain {
     flex: 1;
     min-width: 0;
+  }
+
+  /* Éléments fixed dans le main — décalés à droite du drawer */
+  body.nsono-app #nsonoMain .cart,
+  body.NSOSO-app #NSOSOMain .cart,
+  body.nsono-app #nsonoMain .bottom-nav,
+  body.NSOSO-app #NSOSOMain .bottom-nav {
+    left: var(--drawer-width);
+    width: calc(100% - var(--drawer-width));
+    max-width: none;
+    transform: none;
+  }
+
+  body.nsono-app #nsonoMain #toggleCart,
+  body.NSOSO-app #NSOSOMain #toggleCart,
+  body.nsono-app #nsonoMain #calcBtn,
+  body.NSOSO-app #NSOSOMain #calcBtn,
+  body.nsono-app #nsonoMain #installBtn,
+  body.NSOSO-app #NSOSOMain #installBtn {
+    right: 15px;
   }
 
   .bottom-nav {

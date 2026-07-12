@@ -1,4 +1,4 @@
-/* Critique — drawer hors flux (fallback si drawer.css en cache obsolète) */
+/* Critique — drawer hors flux mobile (fallback si drawer.css en cache obsolète) */
 #nsonoDrawerOverlay,
 #NSOSODrawerOverlay {
   position: fixed;
@@ -25,4 +25,38 @@
 #NSOSODrawer.open {
   transform: translateX(0);
   visibility: visible;
+}
+
+@media (min-width: 1024px) {
+  body.nsono-app,
+  body.NSOSO-app {
+    display: flex;
+    flex-direction: row;
+    margin: 0;
+  }
+
+  #nsonoDrawerOverlay,
+  #NSOSODrawerOverlay {
+    display: none !important;
+  }
+
+  #nsonoDrawer,
+  #NSOSODrawer {
+    position: relative;
+    flex: 0 0 256px;
+    max-width: none;
+    height: 100vh;
+    max-height: 100dvh;
+    transform: none;
+    visibility: visible;
+    box-shadow: none;
+  }
+
+  #nsonoMain,
+  #NSOSOMain {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    min-height: 100vh;
+  }
 }

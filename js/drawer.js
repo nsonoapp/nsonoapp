@@ -258,14 +258,28 @@ function bindDrawerEvents(toggle, overlay, drawer) {
   }
 }
 
+let adminInjectAttempts = 0;
+let authSettleTimer = null;
+const MAX_ADMIN_INJECT_ATTEMPTS = 16;
+
+function scheduleAdminInjectRetry(delay = 250) {
+  if (adminInjectAttempts >= MAX_ADMIN_INJECT_ATTEMPTS) {
+    return;
+  }
+  adminInjectAttempts += 1;
+  setTimeout(injectAdminLinks, delay);
+}
+
 function injectAdminLinks() {
   const adminNav = getDrawerShell().adminNav;
   if (!adminNav) {
+    scheduleAdminInjectRetry(120);
     return;
   }
 
   const uid = resolveDrawerUid();
   if (!uid) {
+    scheduleAdminInjectRetry(300);
     return;
   }
 
@@ -281,6 +295,7 @@ function injectAdminLinks() {
       }))
     )
     .then(({ canAccessAdmin, permissions, isMasterAdmin }) => {
+      adminInjectAttempts = 0;
       if (!canShowAdminSection(permissions, canAccessAdmin)) {
         adminNav.replaceChildren();
         return;
@@ -288,6 +303,7 @@ function injectAdminLinks() {
       renderAdminNav(adminNav, resolveMasterFlag(isMasterAdmin));
     })
     .catch(() => {
+      adminInjectAttempts = 0;
       if (localStorage.getItem("userRole") === "admin") {
         renderAdminNav(adminNav, resolveMasterFlag());
         return;
@@ -306,8 +322,18 @@ function bindAdminInjection() {
   injectAdminLinks();
 
   onAuthStateChanged(getAuth(), user => {
+    if (authSettleTimer) {
+      clearTimeout(authSettleTimer);
+      authSettleTimer = null;
+    }
+
     if (!user) {
-      getDrawerShell().adminNav?.replaceChildren();
+      authSettleTimer = setTimeout(() => {
+        authSettleTimer = null;
+        if (!getAuth().currentUser) {
+          getDrawerShell().adminNav?.replaceChildren();
+        }
+      }, 700);
       return;
     }
 
@@ -315,10 +341,18 @@ function bindAdminInjection() {
       localStorage.setItem("userId", user.uid);
     }
 
+    adminInjectAttempts = 0;
     injectAdminLinks();
   });
 
-  window.addEventListener("nsono:session-ready", injectAdminLinks);
+  window.addEventListener("nsono:session-ready", () => {
+    adminInjectAttempts = 0;
+    injectAdminLinks();
+  });
+  window.addEventListener("nsono:drawer-shell-ready", () => {
+    adminInjectAttempts = 0;
+    injectAdminLinks();
+  });
 }
 
 let drawerBootstrapped = false;
