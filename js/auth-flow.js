@@ -249,7 +249,7 @@ export function authErrorMessage(err, fallback = "Erreur") {
   const message = err?.message || "";
 
   if (message === "meta_missing") {
-    return "Configuration system/meta manquante.";
+    return "Configuration système manquante. Contactez le support.";
   }
 
   if (message === "auth_not_ready") {

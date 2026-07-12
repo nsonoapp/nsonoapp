@@ -43,6 +43,13 @@ const DRAWER_PUBLIC_SECTIONS = [
       { href: "help.html", label: "Aide", icon: "🤝" },
       { href: "login.html", label: "Connexion", icon: "🔐" }
     ]
+  },
+  {
+    title: "Administration",
+    items: [
+      { href: "admin/admin.html", label: "Administration", icon: "⚙️", adminOnly: true },
+      { href: "settings.html", label: "Parametres entite", icon: "🔧", adminOnly: true }
+    ]
   }
 ];
 
@@ -160,6 +167,11 @@ function createDrawerPublicItem(item, isActive) {
     link.setAttribute("aria-current", "page");
   }
 
+  if (item.adminOnly) {
+    link.setAttribute("data-admin-only", "1");
+    link.hidden = true;
+  }
+
   link.append(icon, label, trail);
   return link;
 }
@@ -229,6 +241,7 @@ function renderDrawerPublicShell() {
   }
 
   if (shell.nav.dataset.nsonoPublicReady === "1") {
+    applyDrawerAdminLinkVisibility();
     return;
   }
 
@@ -253,6 +266,43 @@ function renderDrawerPublicShell() {
 
   shell.nav.appendChild(fragment);
   shell.nav.dataset.nsonoPublicReady = "1";
+  applyDrawerAdminLinkVisibility();
+}
+
+async function resolveDrawerAdminAccess() {
+  if (localStorage.getItem("userRole") === "admin") {
+    return true;
+  }
+  if (localStorage.getItem("nsono_isMasterAdmin") === "1") {
+    return true;
+  }
+
+  const uid = localStorage.getItem("userId");
+  if (!uid) {
+    return false;
+  }
+
+  try {
+    const { canAccessAdmin, loadUserPermissions } = await import(
+      resolveAssetPath("admin/js/permissions.js")
+    );
+    const permissions = await loadUserPermissions(uid);
+    return canAccessAdmin(permissions);
+  } catch {
+    return false;
+  }
+}
+
+async function applyDrawerAdminLinkVisibility() {
+  const links = document.querySelectorAll("#nsonoDrawerNav .drawer-item[data-admin-only='1'], #NSOSODrawerNav .drawer-item[data-admin-only='1']");
+  if (!links.length) {
+    return;
+  }
+
+  const visible = await resolveDrawerAdminAccess();
+  links.forEach(link => {
+    link.hidden = !visible;
+  });
 }
 
 function resolveAssetPath(relativePath) {
@@ -528,6 +578,18 @@ function applyRoleVisibility() {
   });
 }
 
+function bindDrawerAdminVisibilityEvents() {
+  window.addEventListener("nsono:session-ready", () => {
+    applyDrawerAdminLinkVisibility();
+  });
+  window.addEventListener("nsono:drawer-shell-ready", () => {
+    applyDrawerAdminLinkVisibility();
+  });
+  window.addEventListener("nsono:drawer-admin-visibility", () => {
+    applyDrawerAdminLinkVisibility();
+  });
+}
+
 ensureDrawerStyles();
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", bindDrawerToggleImmediate, { once: true });
@@ -539,3 +601,5 @@ markActiveNavItems();
 ensureHeaderTitleLayout();
 ensureHeaderSubName();
 applyRoleVisibility();
+bindDrawerAdminVisibilityEvents();
+applyDrawerAdminLinkVisibility();

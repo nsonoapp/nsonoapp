@@ -270,6 +270,10 @@ function scheduleAdminInjectRetry(delay = 250) {
   setTimeout(injectAdminLinks, delay);
 }
 
+function syncDrawerAdminVisibility() {
+  window.dispatchEvent(new CustomEvent("nsono:drawer-admin-visibility"));
+}
+
 function injectAdminLinks() {
   const adminNav = getDrawerShell().adminNav;
   if (!adminNav) {
@@ -280,6 +284,7 @@ function injectAdminLinks() {
   const uid = resolveDrawerUid();
   if (!uid) {
     scheduleAdminInjectRetry(300);
+    syncDrawerAdminVisibility();
     return;
   }
 
@@ -298,17 +303,21 @@ function injectAdminLinks() {
       adminInjectAttempts = 0;
       if (!canShowAdminSection(permissions, canAccessAdmin)) {
         adminNav.replaceChildren();
+        syncDrawerAdminVisibility();
         return;
       }
       renderAdminNav(adminNav, resolveMasterFlag(isMasterAdmin));
+      syncDrawerAdminVisibility();
     })
     .catch(() => {
       adminInjectAttempts = 0;
-      if (localStorage.getItem("userRole") === "admin") {
+      if (localStorage.getItem("userRole") === "admin" || localStorage.getItem("nsono_isMasterAdmin") === "1") {
         renderAdminNav(adminNav, resolveMasterFlag());
+        syncDrawerAdminVisibility();
         return;
       }
       adminNav.replaceChildren();
+      syncDrawerAdminVisibility();
     });
 }
 
@@ -332,6 +341,7 @@ function bindAdminInjection() {
         authSettleTimer = null;
         if (!getAuth().currentUser) {
           getDrawerShell().adminNav?.replaceChildren();
+          syncDrawerAdminVisibility();
         }
       }, 700);
       return;
