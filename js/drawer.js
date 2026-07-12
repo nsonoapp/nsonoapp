@@ -1,21 +1,7 @@
 import { getAuth, onAuthStateChanged } from "./auth.js";
 
-const ADMIN_SECTION = {
-  title: "Administration",
-  items: [
-    { href: "admin/admin.html", label: "Administration", icon: "⚙️" },
-    { href: "admin/company.html", label: "Societe", icon: "🏢", master: true },
-    { href: "admin/entities.html", label: "Entites", icon: "🏬" },
-    { href: "admin/settings.html", label: "Parametres", icon: "🔧" },
-    { href: "admin/logs.html", label: "Logs globaux", icon: "🧾" },
-    { href: "stats.html", label: "Stats societe", icon: "📊" },
-    { href: "admin/stats.html", label: "Stats globales", icon: "📈", master: true }
-  ]
-};
-
 const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)");
 let drawerMqBound = false;
-let adminInjectionBound = false;
 let drawerChromeRetries = 0;
 const DRAWER_CHROME_MAX_RETRIES = 20;
 
@@ -41,31 +27,6 @@ function getDrawerShell() {
   };
 }
 
-function resolveDrawerUid() {
-  const storedUid = localStorage.getItem("userId");
-  if (storedUid) {
-    return storedUid;
-  }
-  return getAuth().currentUser?.uid || "";
-}
-
-function canShowAdminSection(permissions, canAccessAdmin) {
-  if (canAccessAdmin(permissions)) {
-    return true;
-  }
-  if (permissions?.profile?.role === "admin") {
-    return true;
-  }
-  return localStorage.getItem("userRole") === "admin";
-}
-
-function resolveMasterFlag(isMasterAdmin) {
-  if (typeof isMasterAdmin === "function") {
-    return isMasterAdmin();
-  }
-  return localStorage.getItem("nsono_isMasterAdmin") === "1";
-}
-
 function getBasePath() {
   const parts = location.pathname.split("/").filter(Boolean);
   if (parts.length <= 1) {
@@ -86,60 +47,24 @@ function resolveHref(href) {
   return `${base}${href}`;
 }
 
-function currentFile() {
-  return location.pathname.split("/").pop() || "index.html";
-}
-
-function createEl(tag, className, text) {
-  const el = document.createElement(tag);
-  if (className) {
-    el.className = className;
-  }
-  if (text !== undefined && text !== null) {
-    el.textContent = text;
-  }
-  return el;
-}
-
-function createDrawerItem(item, isActive) {
-  const link = createEl("a", "drawer-item");
-  link.href = resolveHref(item.href);
-
-  const icon = createEl("span", "drawer-item-icon");
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = item.icon || "•";
-
-  const label = createEl("span", "drawer-item-label", item.label);
-  const trail = createEl("span", "drawer-item-trail");
-  trail.setAttribute("aria-hidden", "true");
-  trail.textContent = "›";
-
-  if (isActive) {
-    link.classList.add("active");
-    link.setAttribute("aria-current", "page");
-  } else {
-    link.classList.remove("active");
-    link.removeAttribute("aria-current");
-  }
-
-  link.append(icon, label, trail);
-  return link;
+function isDrawerPathActive(href) {
+  const target = String(href || "").replace(/^\//, "");
+  const path = location.pathname.replace(/^\//, "");
+  return path === target || path.endsWith(`/${target}`);
 }
 
 function refreshPublicDrawerLinks() {
   const shell = getDrawerShell();
   const nav = shell.nav;
   const brand = shell.brand;
-  if (!nav || nav.dataset.nsonoPublicReady !== "1") {
+  if (!nav || !nav.dataset.nsonoPublicReady) {
     return;
   }
 
-  const current = currentFile();
   nav.querySelectorAll(".drawer-item").forEach(link => {
     const rawHref = link.getAttribute("data-href") || link.getAttribute("href") || "";
-    const file = rawHref.split("/").pop();
-    link.href = resolveHref(file ? file : rawHref);
-    const isActive = file === current;
+    link.href = resolveHref(rawHref);
+    const isActive = isDrawerPathActive(rawHref);
     link.classList.toggle("active", isActive);
     if (isActive) {
       link.setAttribute("aria-current", "page");
@@ -174,34 +99,6 @@ function initDrawerChrome() {
   refreshPublicDrawerLinks();
   bindDrawerEvents(toggle, overlay, drawer);
   applyResponsiveLayout(drawer, overlay);
-}
-
-function renderAdminNav(adminNav, isMaster) {
-  if (!adminNav) {
-    return;
-  }
-
-  adminNav.replaceChildren();
-
-  const items = ADMIN_SECTION.items.filter(item => !item.master || isMaster);
-  if (!items.length) {
-    return;
-  }
-
-  const fragment = document.createDocumentFragment();
-  fragment.appendChild(createEl("hr", "drawer-divider"));
-
-  const sectionWrap = createEl("div", "drawer-section");
-  sectionWrap.appendChild(createEl("div", "drawer-section-title", ADMIN_SECTION.title));
-
-  const current = currentFile();
-  items.forEach(item => {
-    const isActive = item.href.endsWith(current);
-    sectionWrap.appendChild(createDrawerItem(item, isActive));
-  });
-
-  fragment.appendChild(sectionWrap);
-  adminNav.appendChild(fragment);
 }
 
 function setDrawerOpen(drawer, overlay, open) {
@@ -258,119 +155,37 @@ function bindDrawerEvents(toggle, overlay, drawer) {
   }
 }
 
-let adminInjectAttempts = 0;
-let authSettleTimer = null;
-const MAX_ADMIN_INJECT_ATTEMPTS = 16;
-
-function scheduleAdminInjectRetry(delay = 250) {
-  if (adminInjectAttempts >= MAX_ADMIN_INJECT_ATTEMPTS) {
-    return;
-  }
-  adminInjectAttempts += 1;
-  setTimeout(injectAdminLinks, delay);
-}
-
-function syncDrawerAdminVisibility() {
+export function syncDrawerAdminVisibility() {
   window.dispatchEvent(new CustomEvent("nsono:drawer-admin-visibility"));
 }
 
-function injectAdminLinks() {
-  const adminNav = getDrawerShell().adminNav;
-  if (!adminNav) {
-    scheduleAdminInjectRetry(120);
-    return;
-  }
+let adminVisibilityBound = false;
 
-  const uid = resolveDrawerUid();
-  if (!uid) {
-    scheduleAdminInjectRetry(300);
+function bindAdminVisibilitySync() {
+  if (adminVisibilityBound) {
     syncDrawerAdminVisibility();
     return;
   }
+  adminVisibilityBound = true;
 
-  Promise.all([
-    import("../admin/js/permissions.js"),
-    import("../admin/js/entity-context.js")
-  ])
-    .then(([{ canAccessAdmin, loadUserPermissions }, { isMasterAdmin }]) =>
-      loadUserPermissions(uid).then(permissions => ({
-        canAccessAdmin,
-        permissions,
-        isMasterAdmin
-      }))
-    )
-    .then(({ canAccessAdmin, permissions, isMasterAdmin }) => {
-      adminInjectAttempts = 0;
-      if (!canShowAdminSection(permissions, canAccessAdmin)) {
-        adminNav.replaceChildren();
-        syncDrawerAdminVisibility();
-        return;
-      }
-      renderAdminNav(adminNav, resolveMasterFlag(isMasterAdmin));
-      syncDrawerAdminVisibility();
-    })
-    .catch(() => {
-      adminInjectAttempts = 0;
-      if (localStorage.getItem("userRole") === "admin" || localStorage.getItem("nsono_isMasterAdmin") === "1") {
-        renderAdminNav(adminNav, resolveMasterFlag());
-        syncDrawerAdminVisibility();
-        return;
-      }
-      adminNav.replaceChildren();
-      syncDrawerAdminVisibility();
-    });
-}
-
-function bindAdminInjection() {
-  if (adminInjectionBound) {
-    injectAdminLinks();
-    return;
-  }
-  adminInjectionBound = true;
-
-  injectAdminLinks();
+  syncDrawerAdminVisibility();
 
   onAuthStateChanged(getAuth(), user => {
-    if (authSettleTimer) {
-      clearTimeout(authSettleTimer);
-      authSettleTimer = null;
-    }
-
     if (!user) {
-      authSettleTimer = setTimeout(() => {
-        authSettleTimer = null;
-        if (!getAuth().currentUser) {
-          getDrawerShell().adminNav?.replaceChildren();
-          syncDrawerAdminVisibility();
-        }
-      }, 700);
+      syncDrawerAdminVisibility();
       return;
     }
-
     if (!localStorage.getItem("userId")) {
       localStorage.setItem("userId", user.uid);
     }
-
-    adminInjectAttempts = 0;
-    injectAdminLinks();
+    syncDrawerAdminVisibility();
   });
 
-  window.addEventListener("nsono:session-ready", () => {
-    adminInjectAttempts = 0;
-    injectAdminLinks();
-  });
-  window.addEventListener("nsono:drawer-shell-ready", () => {
-    adminInjectAttempts = 0;
-    injectAdminLinks();
-  });
+  window.addEventListener("nsono:session-ready", syncDrawerAdminVisibility);
+  window.addEventListener("nsono:drawer-shell-ready", syncDrawerAdminVisibility);
 }
-
-let drawerBootstrapped = false;
 
 export function initDrawerNavigation() {
   initDrawerChrome();
-  if (!drawerBootstrapped) {
-    bindAdminInjection();
-    drawerBootstrapped = true;
-  }
+  bindAdminVisibilitySync();
 }

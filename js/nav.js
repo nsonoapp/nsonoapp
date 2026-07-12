@@ -9,6 +9,8 @@ const DRAWER_HUB_ITEM = {
   icon: "◆"
 };
 
+const DRAWER_PUBLIC_VERSION = "4";
+
 const DRAWER_PUBLIC_SECTIONS = [
   {
     title: "Ventes & stock",
@@ -33,7 +35,6 @@ const DRAWER_PUBLIC_SECTIONS = [
   {
     title: "Suivi",
     items: [
-      { href: "logs.html", label: "Logs", icon: "🧾" },
       { href: "loader.html", label: "Vue rapide", icon: "📩" }
     ]
   },
@@ -47,8 +48,17 @@ const DRAWER_PUBLIC_SECTIONS = [
   {
     title: "Administration",
     items: [
-      { href: "admin/admin.html", label: "Administration", icon: "⚙️", adminOnly: true },
-      { href: "settings.html", label: "Parametres entite", icon: "🔧", adminOnly: true }
+      { href: "admin/admin.html", label: "Hub administration", icon: "⚙️", adminOnly: true },
+      { href: "admin/approvals.html", label: "Approbations", icon: "✅", adminOnly: true },
+      { href: "admin/entities.html", label: "Entites", icon: "🏬", adminOnly: true },
+      { href: "admin/roles.html", label: "Roles", icon: "👤", adminOnly: true },
+      { href: "settings.html", label: "Parametres entite", icon: "🔧", adminOnly: true },
+      { href: "admin/settings.html", label: "Parametres admin", icon: "🛠️", adminOnly: true },
+      { href: "stats.html", label: "Stats societe", icon: "📊", adminOnly: true },
+      { href: "logs.html", label: "Logs entite", icon: "📋", adminOnly: true },
+      { href: "admin/logs.html", label: "Logs globaux", icon: "🧾", adminOnly: true },
+      { href: "admin/company.html", label: "Societe", icon: "🏢", adminOnly: true, masterOnly: true },
+      { href: "admin/stats.html", label: "Stats globales", icon: "📈", adminOnly: true, masterOnly: true }
     ]
   }
 ];
@@ -148,6 +158,12 @@ function createDrawerNode(tag, className, text) {
   return el;
 }
 
+function isDrawerItemActive(href) {
+  const target = String(href || "").replace(/^\//, "");
+  const path = location.pathname.replace(/^\//, "");
+  return path === target || path.endsWith(`/${target}`);
+}
+
 function createDrawerPublicItem(item, isActive) {
   const link = createDrawerNode("a", "drawer-item");
   link.setAttribute("data-href", item.href);
@@ -162,13 +178,18 @@ function createDrawerPublicItem(item, isActive) {
   trail.setAttribute("aria-hidden", "true");
   trail.textContent = "›";
 
-  if (isActive) {
+  const active = isActive ?? isDrawerItemActive(item.href);
+  if (active) {
     link.classList.add("active");
     link.setAttribute("aria-current", "page");
   }
 
   if (item.adminOnly) {
     link.setAttribute("data-admin-only", "1");
+    link.hidden = true;
+  }
+  if (item.masterOnly) {
+    link.setAttribute("data-master-only", "1");
     link.hidden = true;
   }
 
@@ -240,7 +261,7 @@ function renderDrawerPublicShell() {
     shell.brand.dataset.nsonoPublicReady = "1";
   }
 
-  if (shell.nav.dataset.nsonoPublicReady === "1") {
+  if (shell.nav.dataset.nsonoPublicReady === DRAWER_PUBLIC_VERSION) {
     applyDrawerAdminLinkVisibility();
     return;
   }
@@ -254,55 +275,88 @@ function renderDrawerPublicShell() {
     }
 
     const sectionWrap = createDrawerNode("div", "drawer-section");
+    if (section.title === "Administration") {
+      sectionWrap.setAttribute("data-admin-section", "1");
+      sectionWrap.hidden = true;
+    }
     sectionWrap.appendChild(createDrawerNode("div", "drawer-section-title", section.title));
 
     section.items.forEach(item => {
-      const isActive = item.href === current;
-      sectionWrap.appendChild(createDrawerPublicItem(item, isActive));
+      sectionWrap.appendChild(createDrawerPublicItem(item));
     });
 
     fragment.appendChild(sectionWrap);
   });
 
   shell.nav.appendChild(fragment);
-  shell.nav.dataset.nsonoPublicReady = "1";
+  shell.nav.dataset.nsonoPublicReady = DRAWER_PUBLIC_VERSION;
   applyDrawerAdminLinkVisibility();
 }
 
 async function resolveDrawerAdminAccess() {
-  if (localStorage.getItem("userRole") === "admin") {
-    return true;
-  }
-  if (localStorage.getItem("nsono_isMasterAdmin") === "1") {
-    return true;
+  const role = localStorage.getItem("userRole");
+  const isMasterStored = localStorage.getItem("nsono_isMasterAdmin") === "1";
+
+  if (role === "admin") {
+    return { isAdmin: true, isMaster: isMasterStored };
   }
 
   const uid = localStorage.getItem("userId");
   if (!uid) {
-    return false;
+    return { isAdmin: false, isMaster: isMasterStored };
   }
 
   try {
-    const { canAccessAdmin, loadUserPermissions } = await import(
-      resolveAssetPath("admin/js/permissions.js")
-    );
+    const [{ canAccessAdmin, loadUserPermissions }, { isMasterAdmin }] = await Promise.all([
+      import(resolveAssetPath("admin/js/permissions.js")),
+      import(resolveAssetPath("admin/js/entity-context.js"))
+    ]);
     const permissions = await loadUserPermissions(uid);
-    return canAccessAdmin(permissions);
+    return {
+      isAdmin: canAccessAdmin(permissions),
+      isMaster: isMasterStored || isMasterAdmin()
+    };
   } catch {
-    return false;
+    return { isAdmin: role === "admin", isMaster: isMasterStored };
   }
 }
 
 async function applyDrawerAdminLinkVisibility() {
-  const links = document.querySelectorAll("#nsonoDrawerNav .drawer-item[data-admin-only='1'], #NSOSODrawerNav .drawer-item[data-admin-only='1']");
+  const links = document.querySelectorAll(
+    "#nsonoDrawerNav .drawer-item[data-admin-only='1'], #NSOSODrawerNav .drawer-item[data-admin-only='1']"
+  );
   if (!links.length) {
     return;
   }
 
-  const visible = await resolveDrawerAdminAccess();
+  const access = await resolveDrawerAdminAccess();
   links.forEach(link => {
-    link.hidden = !visible;
+    if (!access.isAdmin) {
+      link.hidden = true;
+      return;
+    }
+    const masterOnly = link.hasAttribute("data-master-only");
+    link.hidden = masterOnly && !access.isMaster;
   });
+
+  document.querySelectorAll(
+    "#nsonoDrawerNav [data-admin-section='1'], #NSOSODrawerNav [data-admin-section='1']"
+  ).forEach(section => {
+    section.hidden = !access.isAdmin;
+  });
+}
+
+function scheduleDrawerAdminVisibilityRetries() {
+  let attempts = 0;
+  const maxAttempts = 10;
+  const tick = () => {
+    applyDrawerAdminLinkVisibility();
+    attempts += 1;
+    if (attempts < maxAttempts) {
+      window.setTimeout(tick, 600);
+    }
+  };
+  tick();
 }
 
 function resolveAssetPath(relativePath) {
@@ -588,6 +642,7 @@ function bindDrawerAdminVisibilityEvents() {
   window.addEventListener("nsono:drawer-admin-visibility", () => {
     applyDrawerAdminLinkVisibility();
   });
+  scheduleDrawerAdminVisibilityRetries();
 }
 
 ensureDrawerStyles();
