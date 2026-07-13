@@ -18,7 +18,6 @@ import {
   renderContextBanner,
   notifyAdmin,
   sanitizeText,
-  bindListActions,
   createTextEl,
   formatAdminDate,
   cacheEntityName,
@@ -116,6 +115,31 @@ async function loadApprovedAdmins() {
   fillAdminSelect(adminSelect, "", true);
 }
 
+function sortEntities(items) {
+  return items.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+}
+
+async function fetchAllEntities() {
+  let snap = null;
+
+  try {
+    snap = await getDocs(query(
+      collection(db, ADMIN_COLLECTIONS.entities),
+      where("companyId", "==", SINGLE_COMPANY_ID)
+    ));
+  } catch (err) {
+    console.warn("[entities] requête companyId échouée, fallback collection complète", err);
+  }
+
+  if (!snap || snap.empty) {
+    snap = await getDocs(collection(db, ADMIN_COLLECTIONS.entities));
+  }
+
+  const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const scoped = items.filter(item => !item.companyId || item.companyId === SINGLE_COMPANY_ID);
+  return sortEntities(scoped.length ? scoped : items);
+}
+
 async function loadEntities() {
   const master = await resolveMasterAccess(currentUserId);
 
@@ -128,15 +152,15 @@ async function loadEntities() {
   }
 
   const ctx = getEntityContext();
+  const seeAll = master
+    || isMasterAdmin()
+    || (hasScope("scope_entities", permissions) && !ctx.entityId);
 
-  if (master) {
-    const snap = await getDocs(query(
-      collection(db, ADMIN_COLLECTIONS.entities),
-      where("companyId", "==", SINGLE_COMPANY_ID)
-    ));
-    entities = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  if (seeAll) {
+    entities = await fetchAllEntities();
+    if (createEntityBox) {
+      createEntityBox.hidden = false;
+    }
   } else if (ctx.entityId) {
     const snap = await getDoc(doc(db, ADMIN_COLLECTIONS.entities, ctx.entityId));
     entities = snap.exists() ? [{ id: snap.id, ...snap.data() }] : [];
@@ -159,62 +183,85 @@ function adminDisplayName(adminId) {
   return user ? (user.name || user.email || adminId) : adminId;
 }
 
+function renderEntityRow(item) {
+  const row = document.createElement("div");
+  row.className = "admin-item";
+
+  const main = document.createElement("div");
+  const title = createTextEl("strong", item.name || "Sans nom");
+  const meta = createTextEl(
+    "span",
+    `Admin: ${adminDisplayName(item.adminId)} • ${item.isActive === false ? "Inactive" : "Active"} • ${formatAdminDate(item.createdAt)}`
+  );
+  meta.className = "admin-meta";
+
+  if (isMasterAdmin() && item.adminId) {
+    const uidLine = document.createElement("div");
+    uidLine.className = "admin-meta admin-uid-line";
+    const uidText = createTextEl("code", item.adminId);
+    uidText.className = "admin-uid-text";
+    const copyBtn = createCopyButton("Copier UID", item.adminId, copied => {
+      notifyAdmin("adminDebug", copied ? "UID admin copié." : "Copie impossible.", !copied);
+    });
+    uidLine.append(uidText, copyBtn);
+    main.append(title, meta, uidLine);
+  } else {
+    main.append(title, meta);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "admin-actions";
+
+  if (hasScope("scope_entities", permissions)) {
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Modifier";
+    bindActionButton(editBtn, () => openEditModal(item));
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.type = "button";
+    toggleBtn.textContent = item.isActive === false ? "Activer" : "Désactiver";
+    bindActionButton(toggleBtn, () => toggleEntity(item));
+
+    actions.append(editBtn, toggleBtn);
+
+    if (isMasterAdmin()) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "btn-danger";
+      deleteBtn.textContent = "Supprimer";
+      bindActionButton(deleteBtn, () => deleteEntity(item));
+      actions.appendChild(deleteBtn);
+    }
+  }
+
+  row.append(main, actions);
+  return row;
+}
+
 function renderList() {
-  bindListActions(listEl, entities, item => {
-    const row = document.createElement("div");
-    row.className = "admin-item";
+  if (!listEl) {
+    return;
+  }
 
-    const main = document.createElement("div");
-    const title = createTextEl("strong", item.name || "Sans nom");
-    const meta = createTextEl(
-      "span",
-      `Admin: ${adminDisplayName(item.adminId)} • ${item.isActive === false ? "Inactive" : "Active"} • ${formatAdminDate(item.createdAt)}`
-    );
-    meta.className = "admin-meta";
+  listEl.replaceChildren();
 
-    if (isMasterAdmin() && item.adminId) {
-      const uidLine = document.createElement("div");
-      uidLine.className = "admin-meta admin-uid-line";
-      const uidText = createTextEl("code", item.adminId);
-      uidText.className = "admin-uid-text";
-      const copyBtn = createCopyButton("Copier UID", item.adminId, copied => {
-        notifyAdmin("adminDebug", copied ? "UID admin copié." : "Copie impossible.", !copied);
-      });
-      uidLine.append(uidText, copyBtn);
-      main.append(title, meta, uidLine);
-    } else {
-      main.append(title, meta);
-    }
+  const heading = createTextEl("h3", `Entités existantes (${entities.length})`);
+  heading.style.margin = "0 0 12px";
+  heading.style.padding = "12px 12px 0";
+  listEl.appendChild(heading);
 
-    const actions = document.createElement("div");
-    actions.className = "admin-actions";
+  if (!entities.length) {
+    const empty = createTextEl("div", "Aucune entité", "admin-empty");
+    listEl.appendChild(empty);
+    return;
+  }
 
-    if (hasScope("scope_entities", permissions)) {
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.textContent = "Modifier";
-      bindActionButton(editBtn, () => openEditModal(item));
-
-      const toggleBtn = document.createElement("button");
-      toggleBtn.type = "button";
-      toggleBtn.textContent = item.isActive === false ? "Activer" : "Désactiver";
-      bindActionButton(toggleBtn, () => toggleEntity(item));
-
-      actions.append(editBtn, toggleBtn);
-
-      if (isMasterAdmin()) {
-        const deleteBtn = document.createElement("button");
-        deleteBtn.type = "button";
-        deleteBtn.className = "btn-danger";
-        deleteBtn.textContent = "Supprimer";
-        bindActionButton(deleteBtn, () => deleteEntity(item));
-        actions.appendChild(deleteBtn);
-      }
-    }
-
-    row.append(main, actions);
-    return row;
+  const fragment = document.createDocumentFragment();
+  entities.forEach(item => {
+    fragment.appendChild(renderEntityRow(item));
   });
+  listEl.appendChild(fragment);
 }
 
 function openEditModal(item) {

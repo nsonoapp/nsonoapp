@@ -11,7 +11,7 @@
   --drawer-accent: #34a853;
   --header-toggle-size: 40px;
 }
-
+ 
 #nsonoDrawerOverlay,
 #NSOSODrawerOverlay {
   position: fixed;

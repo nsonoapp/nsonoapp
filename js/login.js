@@ -129,12 +129,7 @@ bindFormAction(loginForm, async () => {
   }
 
   try {
-    await setPersistence(
-      auth,
-      rememberMeCheckbox?.checked
-        ? browserLocalPersistence
-        : browserSessionPersistence
-    );
+    await setPersistence(auth, browserLocalPersistence);
 
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     await waitForAuthReady(auth, userCredential.user.uid);

@@ -63,6 +63,14 @@ async function cleanupFailedSignup() {
   }
 }
 
+async function safeSignOut() {
+  try {
+    await signOut(auth);
+  } catch (err) {
+    console.warn("[signup] signOut ignoré:", err?.code || err?.message);
+  }
+}
+
 function notifySignupError(err, fallback) {
   const message = authErrorMessage(err, fallback);
   showSignupFeedback(message);
@@ -122,7 +130,7 @@ bindFormAction(signupForm, async () => {
       }
     });
 
-    await signOut(auth);
+    await safeSignOut();
     const successMsg = "Compte créé. En attente d'approbation par un administrateur.";
     showSignupFeedback(successMsg, false);
     alert(successMsg);
@@ -171,13 +179,13 @@ bindActionButton(googleSignupBtn, async () => {
     });
 
     if (userData?.approvalStatus === "rejected") {
-      await signOut(auth);
+      await safeSignOut();
       notifySignupError({ message: "approval_rejected" }, "Inscription refusée.");
       return;
     }
 
     if (!isUserApproved(userData)) {
-      await signOut(auth);
+      await safeSignOut();
       const successMsg = "Compte créé. En attente d'approbation par un administrateur.";
       showSignupFeedback(successMsg, false);
       alert(successMsg);
@@ -186,13 +194,13 @@ bindActionButton(googleSignupBtn, async () => {
     }
 
     if (!userData?.isActive) {
-      await signOut(auth);
+      await safeSignOut();
       showSignupFeedback("Compte désactivé. Contactez votre administrateur.");
       return;
     }
 
     if (!isAllowedRole(userData.role)) {
-      await signOut(auth);
+      await safeSignOut();
       const successMsg = "Compte créé. En attente d'approbation par un administrateur.";
       showSignupFeedback(successMsg, false);
       alert(successMsg);
@@ -201,7 +209,7 @@ bindActionButton(googleSignupBtn, async () => {
     }
 
     if (!assertUserCompanyMatch(userData, companyAccess.company)) {
-      await signOut(auth);
+      await safeSignOut();
       notifySignupError({ message: "company_mismatch" }, "Inscription impossible.");
       return;
     }

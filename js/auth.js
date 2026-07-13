@@ -27,6 +27,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
 const auth = getFirebaseAuth(app);
+
+const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch(err => {
+  console.warn("[auth] persistance locale indisponible:", err?.code || err?.message || err);
+});
+
+export function waitForAuthPersistence() {
+  return authPersistenceReady;
+}
+
 const PUBLIC_PAGES = new Set(["login.html", "signup.html", "waiting.html", "404.html"]);
 const ADMIN_ONLY_PAGES = new Set([
   "stats.html",
