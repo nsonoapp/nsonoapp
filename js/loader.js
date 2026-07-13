@@ -71,8 +71,7 @@ onAuthStateChanged(auth, async (user) => {
   }
   currentUser = snap.data();
   if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "seller")) {
-    await signOut(auth);
-    location.href = "login.html";
+    location.href = "waiting.html";
     return;
   }
    

@@ -7,8 +7,7 @@ import {
   getAuth,
   signOut,
   setPersistence,
-  browserLocalPersistence,
-  browserSessionPersistence
+  browserLocalPersistence
 } from "./auth.js";
 
 import {
@@ -34,7 +33,6 @@ const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const companyNameInput = document.getElementById("companyName");
 const companyPasswordInput = document.getElementById("companyPassword");
-const rememberMeCheckbox = document.getElementById("rememberMe");
 const googleLoginBtn = document.getElementById("googleLoginBtn");
 const loginFeedbackEl = document.getElementById("loginFeedback");
 

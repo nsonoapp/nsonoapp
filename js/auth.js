@@ -100,15 +100,19 @@ function startAuthGuard() {
   }
   authGuardStarted = true;
 
-  onAuthStateChanged(auth, async user => {
+  onAuthStateChanged(auth, async () => {
+    await authPersistenceReady;
+    await auth.authStateReady();
+
+    const user = auth.currentUser;
     const page = currentPageName();
     const path = currentPath();
     const publicPage = isPublicPage(page);
 
     if (!user) {
-      const { clearNsonoSession } = await import("./auth-flow.js");
-      clearNsonoSession();
       if (!publicPage) {
+        const { clearNsonoSession } = await import("./auth-flow.js");
+        clearNsonoSession();
         redirectTo("login.html");
       }
       return;
