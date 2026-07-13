@@ -5,6 +5,8 @@ import {
   getDocs,
   doc,
   getDoc,
+  query,
+  where,
   serverTimestamp,
   writeLog
 } from "../../js/firebase.js";
@@ -33,15 +35,16 @@ import {
 import {
   canAccessAdmin,
   hasScope,
-  loadUserPermissions
+  loadUserPermissions,
+  clearPermissionsCache
 } from "./permissions.js";
 
-import { isMasterAdmin } from "./entity-context.js";
-import { getEntityContext } from "./entity-context.js";
+import { isMasterAdmin, getEntityContext } from "./entity-context.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
-import { ADMIN_COLLECTIONS } from "./admin-collections.js";
-import { createCopyButton } from "./admin-shared.js";
+import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
+import { createCopyButton, cacheEntityName } from "./admin-shared.js";
 import { restoreNsonoSession } from "../../js/auth-flow.js";
+import { getSingleCompany, isCompanyGeneralAdmin } from "./company-auth.js";
 
 const auth = getAuth();
 
@@ -53,6 +56,10 @@ let currentUserId = null;
 let activeSettingsId = resolveActiveSettingsId();
 let adminMode = "entity";
 let usersEntityFilterId = "all";
+let currentPermissions = null;
+let entityNameMap = new Map();
+let roleDefinitions = [];
+let editingUser = null;
 
 const usersCollection = collection(db, "users");
 
@@ -68,6 +75,13 @@ const loadingState =
 
 const emptyState =
   document.getElementById("emptyState");
+
+const userEditModal = document.getElementById("userEditModal");
+const editUserIdInput = document.getElementById("editUserId");
+const userEditSummary = document.getElementById("userEditSummary");
+const editUserEntitySelect = document.getElementById("editUserEntity");
+const editUserRoleSelect = document.getElementById("editUserRole");
+const editUserRoleIdsBox = document.getElementById("editUserRoleIds");
 
 const confirmModal = document.getElementById("confirmModal");
 const confirmModalTitle = document.getElementById("confirmModalTitle");
@@ -617,6 +631,223 @@ async function loadEntitySettingsSelector() {
   });
 }
 
+async function loadEntityNameMap() {
+  entityNameMap = new Map();
+  const snap = await getDocs(collection(db, ADMIN_COLLECTIONS.entities));
+  snap.forEach(entityDoc => {
+    const name = entityDoc.data().name || entityDoc.id;
+    entityNameMap.set(entityDoc.id, name);
+    cacheEntityName(entityDoc.id, name);
+  });
+}
+
+function resolveEntityLabel(entityId) {
+  if (!entityId) {
+    return "— (admin général)";
+  }
+  return entityNameMap.get(entityId) || entityId;
+}
+
+async function loadRoleDefinitions() {
+  const ctx = getEntityContext();
+  let snap;
+  try {
+    if (adminMode === "general") {
+      snap = await getDocs(collection(db, ADMIN_COLLECTIONS.roles));
+    } else if (ctx.entityId) {
+      snap = await getDocs(query(
+        collection(db, ADMIN_COLLECTIONS.roles),
+        where("entityId", "==", ctx.entityId)
+      ));
+    } else {
+      roleDefinitions = [];
+      return;
+    }
+  } catch {
+    snap = await getDocs(collection(db, ADMIN_COLLECTIONS.roles));
+  }
+
+  roleDefinitions = snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(role => role.isActive !== false)
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+}
+
+function fillUserEntitySelect(selectedEntityId = "") {
+  if (!editUserEntitySelect) {
+    return;
+  }
+
+  editUserEntitySelect.replaceChildren();
+  const ctx = getEntityContext();
+
+  if (adminMode === "general") {
+    const noneOpt = document.createElement("option");
+    noneOpt.value = "";
+    noneOpt.textContent = "Aucune (admin général)";
+    editUserEntitySelect.appendChild(noneOpt);
+
+    entityNameMap.forEach((name, id) => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = name;
+      editUserEntitySelect.appendChild(opt);
+    });
+    editUserEntitySelect.disabled = false;
+  } else {
+    const opt = document.createElement("option");
+    opt.value = ctx.entityId || "";
+    opt.textContent = resolveEntityLabel(ctx.entityId);
+    editUserEntitySelect.appendChild(opt);
+    editUserEntitySelect.disabled = true;
+  }
+
+  editUserEntitySelect.value = adminMode === "entity"
+    ? (ctx.entityId || "")
+    : (selectedEntityId || "");
+}
+
+function renderUserRoleIdCheckboxes(selectedRoleIds = []) {
+  if (!editUserRoleIdsBox) {
+    return;
+  }
+  editUserRoleIdsBox.replaceChildren();
+  const selected = new Set(Array.isArray(selectedRoleIds) ? selectedRoleIds : []);
+
+  if (!roleDefinitions.length) {
+    const empty = document.createElement("p");
+    empty.style.fontSize = "12px";
+    empty.style.color = "#888";
+    empty.textContent = "Aucun rôle dynamique défini.";
+    editUserRoleIdsBox.appendChild(empty);
+    return;
+  }
+
+  roleDefinitions.forEach(role => {
+    const label = document.createElement("label");
+    label.className = "scope-chip";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = role.id;
+    input.checked = selected.has(role.id);
+
+    const text = document.createElement("span");
+    text.textContent = role.name || role.id;
+
+    label.append(input, text);
+    editUserRoleIdsBox.appendChild(label);
+  });
+}
+
+function openUserEditModal(user) {
+  if (!userEditModal || !user) {
+    return;
+  }
+  editingUser = user;
+  if (editUserIdInput) {
+    editUserIdInput.value = user.id || user.userId;
+  }
+  if (userEditSummary) {
+    userEditSummary.textContent = `${sanitizeText(user.name || "-")} • ${sanitizeText(user.email || "-")}`;
+  }
+  if (editUserRoleSelect) {
+    editUserRoleSelect.value = user.role === "admin" ? "admin" : "seller";
+  }
+  fillUserEntitySelect(user.entityId || "");
+  renderUserRoleIdCheckboxes(user.roleIds || []);
+  userEditModal.classList.add("show");
+  userEditModal.setAttribute("aria-hidden", "false");
+}
+
+function closeUserEditModal() {
+  if (!userEditModal) {
+    return;
+  }
+  editingUser = null;
+  userEditModal.classList.remove("show");
+  userEditModal.setAttribute("aria-hidden", "true");
+}
+
+async function saveUserEdit() {
+  if (!editingUser) {
+    return;
+  }
+
+  const userId = editingUser.id || editingUser.userId;
+  const ctx = getEntityContext();
+  const role = editUserRoleSelect?.value === "admin" ? "admin" : "seller";
+  let entityId = editUserEntitySelect?.value || null;
+  if (!entityId) {
+    entityId = null;
+  }
+
+  if (adminMode === "entity") {
+    entityId = ctx.entityId || null;
+  }
+
+  if (!entityId && role !== "admin") {
+    showMessage("Une entité est requise pour un vendeur");
+    return;
+  }
+
+  const roleIds = [];
+  editUserRoleIdsBox?.querySelectorAll("input[type='checkbox']:checked").forEach(input => {
+    if (input.value) {
+      roleIds.push(input.value);
+    }
+  });
+
+  try {
+    const company = await getSingleCompany().catch(() => null);
+    if (!entityId && !isCompanyGeneralAdmin(company, userId) && role === "seller") {
+      showMessage("Assignez une entité avant d'enregistrer");
+      return;
+    }
+
+    const payload = {
+      entityId,
+      companyId: SINGLE_COMPANY_ID,
+      role,
+      roleIds,
+      updatedAt: serverTimestamp()
+    };
+
+    if (editingUser.approvalStatus === "pending" && entityId) {
+      payload.approvalStatus = "approved";
+      payload.isActive = true;
+      if (role === "user") {
+        payload.role = "seller";
+      }
+    }
+
+    await updateData(doc(db, "users", userId), payload);
+
+    clearPermissionsCache();
+
+    await writeLog({
+      userId: currentUserId,
+      action: editingUser.approvalStatus === "pending" ? "user_approve" : "user_profile_update",
+      targetId: userId,
+      details: { entityId, role: payload.role || role, roleIds }
+    });
+
+    showMessage("Utilisateur mis à jour");
+    closeUserEditModal();
+    await loadUsers();
+  } catch (err) {
+    console.error(err);
+    alert("Erreur mise à jour utilisateur");
+  }
+}
+
+document.getElementById("saveUserEditBtn")?.addEventListener("click", () => {
+  saveUserEdit();
+});
+document.getElementById("cancelUserEditBtn")?.addEventListener("click", () => {
+  closeUserEditModal();
+});
+
 async function loadUsersEntityFilter() {
   const wrap = document.getElementById("usersEntityFilterWrap");
   const select = document.getElementById("usersEntityFilter");
@@ -646,6 +877,10 @@ async function loadUsersEntityFilter() {
   });
 
   select.value = usersEntityFilterId;
+  if (select.dataset.nsonoBound === "1") {
+    return;
+  }
+  select.dataset.nsonoBound = "1";
   select.addEventListener("change", () => {
     usersEntityFilterId = select.value || "all";
     loadUsers();
@@ -695,6 +930,7 @@ onAuthStateChanged(auth, async (user) => {
       : entitySettingsId;
 
     const permissions = await loadUserPermissions(currentUserId);
+    currentPermissions = permissions;
     const canManageSettings = canAccessAdmin(permissions)
       || hasScope("scope_settings", permissions);
 
@@ -736,14 +972,29 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
-    if (adminMode === "entity") {
-      document.getElementById("usersSection")?.remove();
-      await loadAppConfig();
-      return;
+    const usersSection = document.getElementById("usersSection");
+    if (usersSection) {
+      const usersHeading = usersSection.querySelector("p");
+      if (usersHeading) {
+        usersHeading.textContent = adminMode === "entity"
+          ? "Gérez les utilisateurs de votre entité."
+          : "Gérez les utilisateurs : entité, rôle et statut.";
+      }
     }
 
-    await loadUsersEntityFilter();
-    loadUsers();
+    document.getElementById("addUserBtn")?.setAttribute("hidden", "hidden");
+
+    await loadEntityNameMap();
+    await loadRoleDefinitions();
+
+    if (adminMode === "general") {
+      await loadUsersEntityFilter();
+    } else {
+      document.getElementById("usersEntityFilterWrap")?.classList.add("field-hidden");
+    }
+
+    await loadUsers();
+    await loadAppConfig();
 
   } catch (err) {
 
@@ -785,9 +1036,14 @@ async function loadUsers() {
     const rows = [];
     snapshot.forEach(docSnap => rows.push({ id: docSnap.id, ...docSnap.data() }));
 
-    const filteredRows = usersEntityFilterId === "all"
-      ? rows
-      : rows.filter(row => row.entityId === usersEntityFilterId);
+    const ctx = getEntityContext();
+    let filteredRows = rows;
+
+    if (adminMode === "entity" && ctx.entityId) {
+      filteredRows = rows.filter(row => row.entityId === ctx.entityId);
+    } else if (usersEntityFilterId !== "all") {
+      filteredRows = rows.filter(row => row.entityId === usersEntityFilterId);
+    }
 
     if (!filteredRows.length) {
       showEmpty(true);
@@ -804,13 +1060,25 @@ async function loadUsers() {
       const nameTd = document.createElement("td");  
       nameTd.textContent = sanitizeText(data.name || "-");  
 
-      /* ---------- EMAIL ---------- */  
-      const emailTd = document.createElement("td");  
-      emailTd.textContent = sanitizeText(data.email || "-");  
+      /* ---------- EMAIL ---------- */
+      const emailTd = document.createElement("td");
+      emailTd.textContent = sanitizeText(data.email || "-");
 
-      /* ---------- ROLE ---------- */  
-      const roleTd = document.createElement("td");  
-      roleTd.appendChild(createBadge(data.role || "seller"));  
+      /* ---------- ENTITY ---------- */
+      const entityTd = document.createElement("td");
+      entityTd.textContent = resolveEntityLabel(data.entityId);
+
+      /* ---------- ROLE ---------- */
+      const roleTd = document.createElement("td");
+      roleTd.appendChild(createBadge(data.role || "seller"));
+      const roleIds = Array.isArray(data.roleIds) ? data.roleIds : [];
+      if (roleIds.length) {
+        const rolesMeta = document.createElement("div");
+        rolesMeta.style.fontSize = "11px";
+        rolesMeta.style.color = "#888";
+        rolesMeta.textContent = `${roleIds.length} rôle(s) dyn.`;
+        roleTd.appendChild(rolesMeta);
+      }
 
       /* ---------- STATUS ---------- */  
       const statusTd = document.createElement("td");  
@@ -840,30 +1108,10 @@ async function loadUsers() {
         showMessage(copied ? "UID copié." : "Copie impossible.");
       });
 
-      /* ROLE BUTTON */  
-      const roleBtn = createButton("Changer rôle", "btn-action");  
-      bindActionButton(roleBtn, async () => {
-        try {
-          const nextRole = data.role === "admin" ? "seller" : "admin";
-          await updateData(doc(db, "users", userId), {
-            role: nextRole,
-            updatedAt: serverTimestamp()
-          });
-          await writeLog({
-            userId: currentUserId,
-            action: "user_role_update",
-            targetId: userId,
-            details: { nextRole }
-          });
-          showMessage("Rôle mis à jour");
-          loadUsers();
-        } catch (err) {
-          console.error(err);
-          alert("Erreur modification rôle");
-        }
-      });  
+      const manageBtn = createButton("Gérer", "btn-action");
+      bindActionButton(manageBtn, () => openUserEditModal(data));
 
-      /* STATUS BUTTON */  
+      /* STATUS BUTTON */
       const statusBtn = createButton(
         data.isActive === false ? "Activer" : "Désactiver",
         data.isActive === false ? "btn-success" : "btn-warning"
@@ -888,27 +1136,11 @@ async function loadUsers() {
         }
       });  
 
-      if (data.approvalStatus === "pending") {
+      if (data.approvalStatus === "pending" && adminMode === "general") {
         const approveBtn = createButton("Approuver", "btn-success");
         bindActionButton(approveBtn, async () => {
-          try {
-            await updateData(doc(db, "users", userId), {
-              approvalStatus: "approved",
-              isActive: true,
-              updatedAt: serverTimestamp()
-            });
-            await writeLog({
-              userId: currentUserId,
-              action: "user_approve",
-              targetId: userId,
-              details: { email: data.email || null }
-            });
-            showMessage("Utilisateur approuvé");
-            loadUsers();
-          } catch (err) {
-            console.error(err);
-            alert("Erreur approbation");
-          }
+          openUserEditModal(data);
+          showMessage("Assignez une entité puis enregistrez pour approuver");
         });
         actionsTd.appendChild(approveBtn);
       }
@@ -955,20 +1187,19 @@ async function loadUsers() {
       });  
 
       actionsTd.appendChild(copyBtn);
-      actionsTd.appendChild(roleBtn);  
-      actionsTd.appendChild(statusBtn);  
-      actionsTd.appendChild(deleteBtn);  
+      actionsTd.appendChild(manageBtn);
+      actionsTd.appendChild(statusBtn);
+      actionsTd.appendChild(deleteBtn);
 
-      /* ---------- APPEND ---------- */  
-      tr.appendChild(nameTd);  
-      tr.appendChild(emailTd);   // <-- ajouté
-      tr.appendChild(roleTd);  
-      tr.appendChild(statusTd);  
-      tr.appendChild(actionsTd); // <-- ordre corrigé
+      tr.appendChild(nameTd);
+      tr.appendChild(emailTd);
+      tr.appendChild(entityTd);
+      tr.appendChild(roleTd);
+      tr.appendChild(statusTd);
+      tr.appendChild(actionsTd);
 
-      usersTableBody.appendChild(tr);  
+      usersTableBody.appendChild(tr);
     });
-    loadAppConfig();
   } catch (err) {
     console.error(err);  
     alert("Erreur chargement utilisateurs");

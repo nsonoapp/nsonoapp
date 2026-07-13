@@ -595,7 +595,7 @@ tbody tr:hover{
     </h2>
 
     <p>
-      Activez, désactivez ou changez les rôles.
+      Gérez les utilisateurs : entité, rôle et statut.
     </p>
 
     <div id="usersEntityFilterWrap" class="field-hidden" style="margin-bottom:12px">
@@ -627,6 +627,8 @@ tbody tr:hover{
 
             <th>Email</th>
 
+            <th>Entité</th>
+
             <th>Rôle</th>
 
             <th>Statut</th>
@@ -642,7 +644,7 @@ tbody tr:hover{
           <tr>
 
             <td
-              colspan="5"
+              colspan="6"
               class="empty-state"
             >
               Chargement...
@@ -822,6 +824,33 @@ tbody tr:hover{
     <div class="modal-actions">
       <button type="button" id="confirmModalYes" class="save-btn">Confirmer</button>
       <button type="button" id="confirmModalNo" class="cancel-btn">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div id="userEditModal" class="modal" aria-hidden="true">
+  <div class="modal-content">
+    <h3 id="userEditModalTitle">Gérer utilisateur</h3>
+    <input type="hidden" id="editUserId">
+    <p id="userEditSummary" style="font-size:13px;color:#666;margin-bottom:12px"></p>
+
+    <label for="editUserEntity">Entité</label>
+    <select id="editUserEntity"></select>
+
+    <label for="editUserRole">Rôle</label>
+    <select id="editUserRole">
+      <option value="seller">Vendeur (seller)</option>
+      <option value="admin">Administrateur (admin)</option>
+    </select>
+
+    <div id="editUserRolesWrap" style="margin-top:12px">
+      <label>Rôles dynamiques</label>
+      <div id="editUserRoleIds" class="scopes-box"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" id="saveUserEditBtn" class="save-btn">Enregistrer</button>
+      <button type="button" id="cancelUserEditBtn" class="cancel-btn">Annuler</button>
     </div>
   </div>
 </div>

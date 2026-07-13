@@ -1,8 +1,8 @@
 export { getEntityScopeConstraints, applyEntityScope } from "../admin/js/query-scope.js";
-export { getEntityContext, setEntityContext, isMasterAdmin } from "../admin/js/entity-context.js";
+export { getEntityContext, setEntityContext, isMasterAdmin, getActiveEntityId } from "../admin/js/entity-context.js";
 export { SINGLE_COMPANY_ID } from "../admin/js/admin-collections.js";
 
-import { getEntityContext } from "../admin/js/entity-context.js";
+import { getEntityContext, getActiveEntityId } from "../admin/js/entity-context.js";
 import { SINGLE_COMPANY_ID } from "../admin/js/admin-collections.js";
 
 export function withEntityScope(payload = {}) {
@@ -14,7 +14,10 @@ export function withEntityScope(payload = {}) {
     companyId
   };
 
-  if (ctx.entityId) {
+  const activeEntityId = getActiveEntityId();
+  if (activeEntityId) {
+    scoped.entityId = activeEntityId;
+  } else if (ctx.entityId) {
     scoped.entityId = ctx.entityId;
   }
 

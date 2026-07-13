@@ -3,6 +3,7 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   setDoc,
   getDoc,
@@ -22,7 +23,8 @@ import {
   formatAdminDate,
   cacheEntityName,
   createCopyButton,
-  confirmDangerAction
+  confirmDangerAction,
+  confirmTripleDangerAction
 } from "./admin-shared.js";
 import { ADMIN_COLLECTIONS, SINGLE_COMPANY_ID } from "./admin-collections.js";
 import { getEntityContext, isMasterAdmin, setEntityContext } from "./entity-context.js";
@@ -30,6 +32,7 @@ import { hasScope } from "./permissions.js";
 import { bindActionButton } from "../../js/utils/buttonManager.js";
 import { hashCompanyPassword, getSingleCompany, isCompanyGeneralAdmin, verifyEntityPasswordViaRules } from "./company-auth.js";
 import { APPROVAL_STATUS } from "./admin-constants.js";
+import { getEntitySettingsId } from "../../js/services/settingsService.js";
 
 let currentUserId = null;
 let permissions = null;
@@ -198,6 +201,15 @@ function renderList() {
       bindActionButton(toggleBtn, () => toggleEntity(item));
 
       actions.append(editBtn, toggleBtn);
+
+      if (isMasterAdmin()) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "btn-danger";
+        deleteBtn.textContent = "Supprimer";
+        bindActionButton(deleteBtn, () => deleteEntity(item));
+        actions.appendChild(deleteBtn);
+      }
     }
 
     row.append(main, actions);
@@ -333,6 +345,65 @@ async function saveEntityEdit() {
   } catch (err) {
     console.error(err);
     notifyAdmin("adminDebug", "Erreur lors de la mise à jour.", true);
+  }
+}
+
+async function countActiveUsersForEntity(entityId) {
+  const snap = await getDocs(query(
+    collection(db, ADMIN_COLLECTIONS.users),
+    where("entityId", "==", entityId)
+  ));
+  return snap.docs.filter(d => d.data().isActive !== false && d.data().approvalStatus !== APPROVAL_STATUS.rejected).length;
+}
+
+async function deleteEntity(item) {
+  if (!isMasterAdmin()) {
+    notifyAdmin("adminDebug", "Seul l'admin général peut supprimer une entité.", true);
+    return;
+  }
+
+  if (item.isActive !== false) {
+    notifyAdmin("adminDebug", "Désactivez l'entité avant de la supprimer.", true);
+    return;
+  }
+
+  const activeUsers = await countActiveUsersForEntity(item.id);
+  if (activeUsers > 0) {
+    notifyAdmin("adminDebug", `Suppression impossible : ${activeUsers} utilisateur(s) actif(s) lié(s).`, true);
+    return;
+  }
+
+  const entityName = item.name || item.id;
+  const confirmed = await confirmTripleDangerAction({
+    title: "Supprimer l'entité",
+    message: `Vous allez supprimer définitivement l'entité « ${entityName} ».`,
+    secondMessage: "Les paramètres et secrets de l'entité seront effacés. Les données métier existantes ne seront pas supprimées automatiquement.",
+    confirmLabel: "Supprimer définitivement",
+    nameToType: entityName
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, ADMIN_COLLECTIONS.entities, item.id));
+    await deleteDoc(doc(db, ADMIN_COLLECTIONS.entitySecrets, item.id)).catch(() => null);
+    await deleteDoc(doc(db, "settings", getEntitySettingsId(item.id))).catch(() => null);
+
+    await writeLog({
+      userId: currentUserId,
+      action: "entity_delete",
+      targetId: item.id,
+      details: { name: entityName }
+    });
+
+    notifyAdmin("adminDebug", "Entité supprimée.");
+    await loadEntities();
+    await renderContextBanner();
+  } catch (err) {
+    console.error(err);
+    notifyAdmin("adminDebug", "Erreur lors de la suppression.", true);
   }
 }
 

@@ -129,6 +129,16 @@ service cloud.firestore {
       );
     }
 
+    function validAdminUserEntityChange() {
+      return !request.resource.data.keys().hasAny(['entityId'])
+        || request.resource.data.entityId == resource.data.entityId
+        || (
+          currentUserDoc().data.keys().hasAny(['entityId'])
+          && currentUserDoc().data.entityId != null
+          && request.resource.data.entityId == currentUserDoc().data.entityId
+        );
+    }
+
     function isMasterOfCompany(companyId) {
       return companyId == 'main'
         && companyExists()
@@ -203,8 +213,8 @@ service cloud.firestore {
           && request.resource.data.role == resource.data.role
           && userBelongsToCompany()
           && selfUpdateUnchangedProfileFields())
-        || canAdminUpdateUser()
         || isMasterOfCompany('main')
+        || (canAdminUpdateUser() && validAdminUserEntityChange())
       );
 
       allow delete: if isAdmin();

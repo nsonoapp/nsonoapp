@@ -10,6 +10,7 @@ import {
 } from "./firebase.js";
 import { getAuth, onAuthStateChanged } from "./auth.js";
 import { getEntityContext } from "./nsono-scope.js";
+import { getActiveEntityId } from "../admin/js/entity-context.js";
 import { loadUserPermissions, canAccessAdmin } from "../admin/js/permissions.js";
 import { bindActionButton } from "./utils/buttonManager.js";
 
@@ -65,7 +66,10 @@ function buildQuery() {
   if (ctx.companyId) {
     constraints.push(where("companyId", "==", ctx.companyId));
   }
-  if (ctx.entityId) {
+  const activeEntityId = getActiveEntityId();
+  if (activeEntityId) {
+    constraints.push(where("entityId", "==", activeEntityId));
+  } else if (ctx.entityId) {
     constraints.push(where("entityId", "==", ctx.entityId));
   }
 

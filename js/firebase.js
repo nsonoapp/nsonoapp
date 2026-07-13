@@ -48,7 +48,7 @@ const db = initializeFirestore(app, {
 
 const enableIndexedDbPersistence = async () => true;
 
-import { getEntityContext } from "../admin/js/entity-context.js";
+import { getEntityContext, getActiveEntityId } from "../admin/js/entity-context.js";
 import { SINGLE_COMPANY_ID } from "../admin/js/admin-collections.js";
 
 function scopeLogEntry(entry = {}) {
@@ -57,8 +57,9 @@ function scopeLogEntry(entry = {}) {
     ...entry,
     companyId: entry.companyId || ctx.companyId || SINGLE_COMPANY_ID
   };
-  if (entry.entityId || ctx.entityId) {
-    scoped.entityId = entry.entityId || ctx.entityId;
+  const activeEntityId = getActiveEntityId();
+  if (entry.entityId || activeEntityId || ctx.entityId) {
+    scoped.entityId = entry.entityId || activeEntityId || ctx.entityId;
   }
   return scoped;
 }

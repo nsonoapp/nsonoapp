@@ -5,7 +5,7 @@
   inset: 0;
   z-index: 9998;
   pointer-events: none;
-}
+} 
 
 #nsonoDrawerOverlay.open,
 #NSOSODrawerOverlay.open {

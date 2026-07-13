@@ -5,9 +5,15 @@ import {
   canAccessAdmin,
   hasScope
 } from "./permissions.js";
-import { getEntityContext } from "./entity-context.js";
+import {
+  getEntityContext,
+  getActiveEntityId,
+  getMasterEntityView,
+  setMasterEntityView,
+  isMasterAdmin
+} from "./entity-context.js";
 import { getStoredCompanyName } from "./company-auth.js";
-import { db, doc, getDoc } from "../../js/firebase.js";
+import { db, doc, getDoc, collection, getDocs } from "../../js/firebase.js";
 import { ADMIN_COLLECTIONS } from "./admin-collections.js";
 
 let toastTimer = null;
@@ -49,19 +55,75 @@ export async function renderContextBanner(containerId = "adminContextBanner") {
 
   box.replaceChildren();
   const ctx = getEntityContext();
+  const activeEntityId = getActiveEntityId();
   const companyName = getStoredCompanyName() || ctx.companyId || "Société non liée";
-  const entityLabel = await resolveEntityLabel(ctx.entityId, ctx.isMasterAdmin);
+  const entityLabel = await resolveEntityLabel(activeEntityId, ctx.isMasterAdmin);
+
+  const wrap = document.createElement("div");
+  wrap.className = "admin-context-banner";
 
   const line = createTextEl(
     "p",
-    ctx.isMasterAdmin && !ctx.entityId
+    ctx.isMasterAdmin && !activeEntityId
       ? `${companyName} • Master Admin — toutes entités`
       : `${companyName} • Entité : ${entityLabel}`
   );
   line.style.margin = "0";
   line.style.fontSize = "13px";
   line.style.color = "#555";
-  box.appendChild(line);
+  wrap.appendChild(line);
+
+  if (ctx.isMasterAdmin) {
+    const selectorWrap = document.createElement("div");
+    selectorWrap.className = "admin-context-entity-select";
+    selectorWrap.style.marginTop = "8px";
+
+    const label = document.createElement("label");
+    label.setAttribute("for", "adminMasterEntityView");
+    label.textContent = "Vue entité : ";
+    label.style.fontSize = "12px";
+    label.style.color = "#666";
+
+    const select = document.createElement("select");
+    select.id = "adminMasterEntityView";
+    select.style.fontSize = "12px";
+    select.style.marginLeft = "4px";
+
+    const globalOpt = document.createElement("option");
+    globalOpt.value = "";
+    globalOpt.textContent = "Toutes les entités";
+    select.appendChild(globalOpt);
+
+    try {
+      const snap = await getDocs(collection(db, ADMIN_COLLECTIONS.entities));
+      snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(e => e.isActive !== false)
+        .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+        .forEach(entity => {
+          const opt = document.createElement("option");
+          opt.value = entity.id;
+          opt.textContent = entity.name || entity.id;
+          select.appendChild(opt);
+        });
+    } catch {
+      /* ignore */
+    }
+
+    select.value = getMasterEntityView() || "";
+    select.addEventListener("change", () => {
+      setMasterEntityView(select.value || null);
+      renderContextBanner(containerId);
+      window.dispatchEvent(new CustomEvent("nsono:entity-view-changed", {
+        detail: { entityId: select.value || null }
+      }));
+    });
+
+    selectorWrap.append(label, select);
+    wrap.appendChild(selectorWrap);
+  }
+
+  box.appendChild(wrap);
 }
 
 export function createTextEl(tag, text, className) {
@@ -183,6 +245,43 @@ export function confirmDangerAction({
 
     modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
+  });
+}
+
+export async function confirmTripleDangerAction({
+  title = "Action sensible",
+  message = "",
+  secondMessage = "Cette action est irréversible.",
+  confirmLabel = "Supprimer définitivement",
+  nameToType = ""
+} = {}) {
+  const step1 = await confirmDangerAction({
+    title: `1/3 — ${title}`,
+    message,
+    confirmLabel: "Continuer"
+  });
+  if (!step1) {
+    return false;
+  }
+
+  const step2 = await confirmDangerAction({
+    title: `2/3 — ${title}`,
+    message: secondMessage,
+    confirmLabel: "Je comprends les risques"
+  });
+  if (!step2) {
+    return false;
+  }
+
+  if (nameToType) {
+    const typed = window.prompt(`3/3 — Tapez exactement « ${nameToType} » pour confirmer`);
+    return typed === nameToType;
+  }
+
+  return confirmDangerAction({
+    title: `3/3 — ${title}`,
+    message: "Dernière confirmation.",
+    confirmLabel
   });
 }
 
